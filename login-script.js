@@ -1,102 +1,25 @@
 /**
  * ApexHR - Employee Leave Management System
- * Client-Side Application Script
+ * Client-Side Application Script integrated with ApexAPI REST backend.
  */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
-  // --- LocalStorage Data Keys ---
+  // --- LocalStorage Data Keys (Fallback) ---
   const STORAGE_KEYS = {
     SESSION: 'apex_auth_session',
     LEAVES: 'apex_leave_requests',
     EMPLOYEES: 'apex_employee_list'
   };
 
-  // --- Default Seed Data ---
-  const DEFAULT_EMPLOYEES = [
-    { id: 'EMP-101', name: 'Alex Johnson', email: 'employee@company.com', dept: 'Engineering', role: 'Software Engineer', allowance: 18, status: 'Active' },
-    { id: 'EMP-102', name: 'Priya Sharma', email: 'priya@company.com', dept: 'Marketing', role: 'Growth Strategist', allowance: 20, status: 'Active' },
-    { id: 'EMP-103', name: 'Marcus Vance', email: 'marcus@company.com', dept: 'Product Design', role: 'UI/UX Designer', allowance: 15, status: 'Active' },
-    { id: 'EMP-104', name: 'David Kim', email: 'david@company.com', dept: 'QA Engineering', role: 'Quality Analyst', allowance: 18, status: 'Active' },
-    { id: 'EMP-105', name: 'Elena Rostova', email: 'elena@company.com', dept: 'Operations', role: 'Project Specialist', allowance: 22, status: 'Active' },
-  ];
-
-  const DEFAULT_LEAVES = [
-    {
-      id: 'LR-901',
-      empId: 'EMP-101',
-      empName: 'Alex Johnson',
-      empEmail: 'employee@company.com',
-      type: 'Annual Vacation',
-      startDate: '2026-08-05',
-      endDate: '2026-08-09',
-      days: 5,
-      reason: 'Summer family vacation trip.',
-      status: 'Pending',
-      submittedAt: '2026-07-26'
-    },
-    {
-      id: 'LR-902',
-      empId: 'EMP-103',
-      empName: 'Marcus Vance',
-      empEmail: 'marcus@company.com',
-      type: 'Casual Leave',
-      startDate: '2026-07-29',
-      endDate: '2026-07-30',
-      days: 2,
-      reason: 'Attending family event.',
-      status: 'Pending',
-      submittedAt: '2026-07-27'
-    },
-    {
-      id: 'LR-903',
-      empId: 'EMP-102',
-      empName: 'Priya Sharma',
-      empEmail: 'priya@company.com',
-      type: 'Sick Leave',
-      startDate: '2026-07-20',
-      endDate: '2026-07-22',
-      days: 3,
-      reason: 'Fever and viral infection.',
-      status: 'Approved',
-      submittedAt: '2026-07-19'
-    },
-    {
-      id: 'LR-904',
-      empId: 'EMP-104',
-      empName: 'David Kim',
-      empEmail: 'david@company.com',
-      type: 'Emergency Leave',
-      startDate: '2026-07-15',
-      endDate: '2026-07-15',
-      days: 1,
-      reason: 'Home maintenance urgent repair.',
-      status: 'Rejected',
-      submittedAt: '2026-07-14'
+  // Check API Server connectivity & status indicator banner
+  if (window.ApexAPI) {
+    const health = await ApexAPI.checkHealth();
+    if (ApexAPI.isServerOnline) {
+      console.log('✅ Connected to ApexHR REST API Server:', health);
+    } else {
+      console.log('ℹ️ Running in Local Storage Fallback Mode');
     }
-  ];
-
-  // Initialize Storage
-  function initDataStorage() {
-    if (!localStorage.getItem(STORAGE_KEYS.EMPLOYEES)) {
-      localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(DEFAULT_EMPLOYEES));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.LEAVES)) {
-      localStorage.setItem(STORAGE_KEYS.LEAVES, JSON.stringify(DEFAULT_LEAVES));
-    }
-  }
-  initDataStorage();
-
-  function getEmployees() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.EMPLOYEES)) || DEFAULT_EMPLOYEES;
-  }
-
-  function getLeaves() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVES)) || DEFAULT_LEAVES;
-  }
-
-  function saveLeaves(leaves) {
-    localStorage.setItem(STORAGE_KEYS.LEAVES, JSON.stringify(leaves));
   }
 
   // --- Element References ---
@@ -179,20 +102,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Fast Demo Buttons ---
-  fillEmployeeDemoBtn.addEventListener('click', () => {
-    emailInput.value = 'employee@company.com';
-    passwordInput.value = 'password123';
-    loginForm.dispatchEvent(new Event('submit'));
-  });
+  if (fillEmployeeDemoBtn) {
+    fillEmployeeDemoBtn.addEventListener('click', () => {
+      emailInput.value = 'employee@company.com';
+      passwordInput.value = 'password123';
+      loginForm.dispatchEvent(new Event('submit'));
+    });
+  }
 
-  fillAdminDemoBtn.addEventListener('click', () => {
-    emailInput.value = 'admin@company.com';
-    passwordInput.value = 'admin123';
-    loginForm.dispatchEvent(new Event('submit'));
-  });
+  if (fillAdminDemoBtn) {
+    fillAdminDemoBtn.addEventListener('click', () => {
+      emailInput.value = 'admin@company.com';
+      passwordInput.value = 'admin123';
+      loginForm.dispatchEvent(new Event('submit'));
+    });
+  }
 
   // --- Authentication Handler ---
-  loginForm.addEventListener('submit', (e) => {
+  loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = emailInput.value.trim().toLowerCase();
     const password = passwordInput.value;
@@ -206,30 +133,36 @@ document.addEventListener('DOMContentLoaded', () => {
     submitBtn.disabled = true;
     document.getElementById('login-spinner').classList.remove('hidden');
 
-    setTimeout(() => {
+    try {
+      const authRes = await ApexAPI.login(email, password);
+      
       submitBtn.disabled = false;
       document.getElementById('login-spinner').classList.add('hidden');
 
-      if (email === 'admin@company.com') {
-        const session = { email, role: 'admin', name: 'System Administrator' };
-        localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
-        showToast('Logged in as Admin', 'success');
-        switchView('admin');
-      } else {
-        const employees = getEmployees();
-        const emp = employees.find(e => e.email.toLowerCase() === email) || {
-          name: 'Alex Johnson', email: 'employee@company.com', id: 'EMP-101'
+      if (authRes.success) {
+        const user = authRes.user;
+        const session = {
+          email: user.email,
+          role: user.role,
+          name: user.name,
+          id: user.empId || 'EMP-101'
         };
-        const session = { email: emp.email, role: 'employee', name: emp.name, id: emp.id };
         localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
-        showToast(`Welcome back, ${emp.name}!`, 'success');
-        switchView('employee');
+
+        showToast(`Welcome back, ${user.name}!`, 'success');
+        switchView(user.role === 'admin' ? 'admin' : 'employee');
+      } else {
+        showToast(authRes.error || 'Authentication failed', 'error');
       }
-    }, 600);
+    } catch (err) {
+      submitBtn.disabled = false;
+      document.getElementById('login-spinner').classList.add('hidden');
+      showToast('Login error. Please try again.', 'error');
+    }
   });
 
   // --- View Switcher ---
-  function switchView(viewName) {
+  async function switchView(viewName) {
     Object.keys(views).forEach(k => {
       views[k].classList.remove('view-active');
       views[k].classList.add('view-hidden');
@@ -238,8 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
     views[viewName].classList.remove('view-hidden');
     views[viewName].classList.add('view-active');
 
-    if (viewName === 'employee') renderEmployeePortal();
-    if (viewName === 'admin') renderAdminPortal();
+    if (viewName === 'employee') await renderEmployeePortal();
+    if (viewName === 'admin') await renderAdminPortal();
   }
 
   // --- Logout Triggers ---
@@ -254,13 +187,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   // EMPLOYEE PORTAL LOGIC
   // =========================================================================
-  function renderEmployeePortal() {
+  async function renderEmployeePortal() {
     const session = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || {};
     empNameDisplay.textContent = session.name || 'Alex Johnson';
     empAvatarDisplay.textContent = (session.name || 'A').charAt(0).toUpperCase();
 
-    const leaves = getLeaves().filter(l => l.empEmail === session.email);
-    
+    const allLeaves = await ApexAPI.getLeaves();
+    const leaves = allLeaves.filter(l => l.empEmail === session.email || l.empId === session.id);
+
     // Update summary counters
     const pending = leaves.filter(l => l.status === 'Pending').length;
     const approved = leaves.filter(l => l.status === 'Approved').length;
@@ -277,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    leaves.reverse().forEach(l => {
+    [...leaves].reverse().forEach(l => {
       const tr = document.createElement('tr');
       const badgeClass = l.status === 'Approved' ? 'badge-approved' : l.status === 'Rejected' ? 'badge-rejected' : 'badge-pending';
       tr.innerHTML = `
@@ -307,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   applyDateConstraints();
 
-  // Validate start date (cannot be in the past)
+  // Validate start date
   function validateStartDate() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -334,10 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
       startDateInput.classList.remove('is-invalid');
       if (startDateError) startDateError.classList.remove('visible');
       
-      // Dynamically set minimum end date to selected start date
       endDateInput.min = val;
-
-      // If end date is currently set before start date, reset end date
       if (endDateInput.value && endDateInput.value < val) {
         endDateInput.value = val;
       }
@@ -345,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Validate end date (must be >= start date)
+  // Validate end date
   function validateEndDate() {
     const startVal = startDateInput.value;
     const endVal = endDateInput.value;
@@ -391,13 +322,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  startDateInput.addEventListener('change', calculateDays);
-  endDateInput.addEventListener('change', calculateDays);
-  startDateInput.addEventListener('input', calculateDays);
-  endDateInput.addEventListener('input', calculateDays);
+  if (startDateInput && endDateInput) {
+    startDateInput.addEventListener('change', calculateDays);
+    endDateInput.addEventListener('change', calculateDays);
+    startDateInput.addEventListener('input', calculateDays);
+    endDateInput.addEventListener('input', calculateDays);
+  }
 
   // Submit Leave Request
-  leaveApplyForm.addEventListener('submit', (e) => {
+  leaveApplyForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     applyDateConstraints();
@@ -415,9 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const session = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION));
-    const newLeave = {
-      id: `LR-${Math.floor(900 + Math.random() * 90)}`,
+    const session = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || {};
+    const newLeavePayload = {
       empId: session.id || 'EMP-101',
       empName: session.name || 'Alex Johnson',
       empEmail: session.email || 'employee@company.com',
@@ -425,20 +357,16 @@ document.addEventListener('DOMContentLoaded', () => {
       startDate: startDateInput.value,
       endDate: endDateInput.value,
       days: days,
-      reason: document.getElementById('leave-reason').value.trim(),
-      status: 'Pending',
-      submittedAt: new Date().toISOString().split('T')[0]
+      reason: document.getElementById('leave-reason').value.trim()
     };
 
-    const leaves = getLeaves();
-    leaves.push(newLeave);
-    saveLeaves(leaves);
+    const res = await ApexAPI.submitLeave(newLeavePayload);
 
     showToast('Leave request submitted successfully!', 'success');
     leaveApplyForm.reset();
     applyDateConstraints();
     daysBanner.classList.add('hidden');
-    renderEmployeePortal();
+    await renderEmployeePortal();
   });
 
   // =========================================================================
@@ -487,7 +415,6 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       adminActiveTabTitle.textContent = titles[tabId] || 'Admin Panel';
 
-      // Auto close drawer on mobile after selecting tab
       closeMobileSidebar();
     });
   });
@@ -499,32 +426,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function renderAdminPortal() {
-    updateAdminStats();
-    renderDashboardRecentTable();
-    renderAdminEmployeeList();
-    renderAdminLeaveHistory('all');
+  async function renderAdminPortal() {
+    await updateAdminStats();
+    await renderDashboardRecentTable();
+    await renderAdminEmployeeList();
+    await renderAdminLeaveHistory('all');
   }
 
-  function updateAdminStats() {
-    const employees = getEmployees();
-    const leaves = getLeaves();
+  async function updateAdminStats() {
+    const stats = await ApexAPI.getStats();
 
-    const pendingCount = leaves.filter(l => l.status === 'Pending').length;
-    const approvedCount = leaves.filter(l => l.status === 'Approved').length;
-    const rejectedCount = leaves.filter(l => l.status === 'Rejected').length;
+    statTotalEmployees.textContent = stats.totalEmployees;
+    statPendingRequests.textContent = stats.pendingRequests;
+    statApprovedLeaves.textContent = stats.approvedLeaves;
+    statRejectedLeaves.textContent = stats.rejectedLeaves;
 
-    statTotalEmployees.textContent = employees.length;
-    statPendingRequests.textContent = pendingCount;
-    statApprovedLeaves.textContent = approvedCount;
-    statRejectedLeaves.textContent = rejectedCount;
-
-    pendingBadgeCount.textContent = pendingCount;
+    pendingBadgeCount.textContent = stats.pendingRequests;
   }
 
   // Dashboard Recent Table
-  function renderDashboardRecentTable() {
-    const leaves = getLeaves().filter(l => l.status === 'Pending');
+  async function renderDashboardRecentTable() {
+    const leaves = await ApexAPI.getLeaves({ status: 'Pending' });
     dashboardRecentTbody.innerHTML = '';
 
     if (leaves.length === 0) {
@@ -552,11 +474,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Admin Employee Directory
-  function renderAdminEmployeeList(filterText = '') {
-    let employees = getEmployees();
-    if (filterText) {
-      employees = employees.filter(e => e.name.toLowerCase().includes(filterText) || e.email.toLowerCase().includes(filterText));
-    }
+  async function renderAdminEmployeeList(filterText = '') {
+    let employees = await ApexAPI.getEmployees({ search: filterText });
 
     adminEmployeesTbody.innerHTML = '';
     employees.forEach(e => {
@@ -574,17 +493,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (employeeSearchInput) {
-    employeeSearchInput.addEventListener('input', (e) => {
-      renderAdminEmployeeList(e.target.value.toLowerCase().trim());
+    employeeSearchInput.addEventListener('input', async (e) => {
+      await renderAdminEmployeeList(e.target.value.toLowerCase().trim());
     });
   }
 
   // Admin Leave History & Filter
-  function renderAdminLeaveHistory(filter = 'all') {
-    let leaves = getLeaves();
-    if (filter !== 'all') {
-      leaves = leaves.filter(l => l.status === filter);
-    }
+  async function renderAdminLeaveHistory(filter = 'all') {
+    let leaves = await ApexAPI.getLeaves({ status: filter === 'all' ? 'All' : filter });
 
     adminLeaveTbody.innerHTML = '';
     if (leaves.length === 0) {
@@ -592,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    leaves.reverse().forEach(l => {
+    [...leaves].reverse().forEach(l => {
       const tr = document.createElement('tr');
       const badgeClass = l.status === 'Approved' ? 'badge-approved' : l.status === 'Rejected' ? 'badge-rejected' : 'badge-pending';
       const actionHtml = l.status === 'Pending' 
@@ -618,40 +534,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Filter Buttons Handler
   filterBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       filterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const filter = btn.getAttribute('data-filter');
-      renderAdminLeaveHistory(filter);
+      await renderAdminLeaveHistory(filter);
     });
   });
 
   // Action Listeners for Approve / Reject
   function attachLeaveActionListeners(container) {
     container.querySelectorAll('.action-approve').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
-        updateLeaveStatus(id, 'Approved');
+        await updateLeaveStatus(id, 'Approved');
       });
     });
 
     container.querySelectorAll('.action-reject').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
-        updateLeaveStatus(id, 'Rejected');
+        await updateLeaveStatus(id, 'Rejected');
       });
     });
   }
 
-  function updateLeaveStatus(leaveId, newStatus) {
-    const leaves = getLeaves();
-    const idx = leaves.findIndex(l => l.id === leaveId);
-    if (idx !== -1) {
-      leaves[idx].status = newStatus;
-      saveLeaves(leaves);
-      showToast(`Leave request ${leaveId} has been ${newStatus.toLowerCase()}`, newStatus === 'Approved' ? 'success' : 'error');
-      renderAdminPortal();
-    }
+  async function updateLeaveStatus(leaveId, newStatus) {
+    const res = await ApexAPI.updateLeaveStatus(leaveId, newStatus);
+    showToast(`Leave request ${leaveId} has been ${newStatus.toLowerCase()}`, newStatus === 'Approved' ? 'success' : 'error');
+    await renderAdminPortal();
   }
 
   // --- Auto Restore Session on Load ---
@@ -659,12 +570,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (activeSession) {
     try {
       const session = JSON.parse(activeSession);
-      switchView(session.role === 'admin' ? 'admin' : 'employee');
+      await switchView(session.role === 'admin' ? 'admin' : 'employee');
     } catch (e) {
-      switchView('login');
+      await switchView('login');
     }
   } else {
-    switchView('login');
+    await switchView('login');
   }
 
 });

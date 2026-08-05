@@ -1,0 +1,133 @@
+{
+  "employees": [
+    {
+      "id": "EMP-101",
+      "name": "Alex Johnson",
+      "email": "employee@company.com",
+      "dept": "Engineering",
+      "role": "Software Engineer",
+      "allowance": 18,
+      "status": "Active"
+    },
+    {
+      "id": "EMP-102",
+      "name": "Priya Sharma",
+      "email": "priya@company.com",
+      "dept": "Marketing",
+      "role": "Growth Strategist",
+      "allowance": 20,
+      "status": "Active"
+    },
+    {
+      "id": "EMP-103",
+      "name": "Marcus Vance",
+      "email": "marcus@company.com",
+      "dept": "Product Design",
+      "role": "UI/UX Designer",
+      "allowance": 15,
+      "status": "Active"
+    },
+    {
+      "id": "EMP-104",
+      "name": "David Kim",
+      "email": "david@company.com",
+      "dept": "QA Engineering",
+      "role": "Quality Analyst",
+      "allowance": 18,
+      "status": "Active"
+    },
+    {
+      "id": "EMP-105",
+      "name": "Elena Rostova",
+      "email": "elena@company.com",
+      "dept": "Operations",
+      "role": "Project Specialist",
+      "allowance": 22,
+      "status": "Active"
+    }
+  ],
+  "leaves": [
+    {
+      "id": "LR-351",
+      "empId": "EMP-101",
+      "empName": "Alex Johnson",
+      "empEmail": "employee@company.com",
+      "type": "Annual Vacation",
+      "startDate": "2026-08-10",
+      "endDate": "2026-08-14",
+      "days": 5,
+      "reason": "Annual medical checkup & family rest",
+      "status": "Rejected",
+      "submittedAt": "2026-08-05",
+      "updatedAt": "2026-08-05T07:34:04.625Z"
+    },
+    {
+      "id": "LR-694",
+      "empId": "EMP-101",
+      "empName": "Alex Johnson",
+      "empEmail": "employee@company.com",
+      "type": "Casual Leave",
+      "startDate": "2026-09-01",
+      "endDate": "2026-09-03",
+      "days": 3,
+      "reason": "Personal work",
+      "status": "Approved",
+      "submittedAt": "2026-08-05",
+      "updatedAt": "2026-08-05T07:30:45.746Z"
+    },
+    {
+      "id": "LR-901",
+      "empId": "EMP-101",
+      "empName": "Alex Johnson",
+      "empEmail": "employee@company.com",
+      "type": "Annual Vacation",
+      "startDate": "2026-08-05",
+      "endDate": "2026-08-09",
+      "days": 5,
+      "reason": "Summer family vacation trip.",
+      "status": "Rejected",
+      "submittedAt": "2026-07-26",
+      "updatedAt": "2026-08-05T07:34:06.032Z"
+    },
+    {
+      "id": "LR-902",
+      "empId": "EMP-103",
+      "empName": "Marcus Vance",
+      "empEmail": "marcus@company.com",
+      "type": "Casual Leave",
+      "startDate": "2026-07-29",
+      "endDate": "2026-07-30",
+      "days": 2,
+      "reason": "Attending family event.",
+      "status": "Rejected",
+      "submittedAt": "2026-07-27",
+      "updatedAt": "2026-08-05T07:34:08.170Z"
+    },
+    {
+      "id": "LR-903",
+      "empId": "EMP-102",
+      "empName": "Priya Sharma",
+      "empEmail": "priya@company.com",
+      "type": "Sick Leave",
+      "startDate": "2026-07-20",
+      "endDate": "2026-07-22",
+      "days": 3,
+      "reason": "Fever and viral infection.",
+      "status": "Approved",
+      "submittedAt": "2026-07-19"
+    },
+    {
+      "id": "LR-904",
+      "empId": "EMP-104",
+      "empName": "David Kim",
+      "empEmail": "david@company.com",
+      "type": "Emergency Leave",
+      "startDate": "2026-07-15",
+      "endDate": "2026-07-15",
+      "days": 1,
+      "reason": "Home maintenance urgent repair.",
+      "status": "Rejected",
+      "submittedAt": "2026-07-14"
+    }
+  ]
+}
