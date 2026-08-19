@@ -272,6 +272,7 @@
     </a>
 
     <div style="display: flex; align-items: center; gap: 1rem;">
+      <a href="purchase.html" style="color:#38bdf8; text-decoration:none; font-weight:600; font-size:0.9rem;">🛒 Purchases & Store</a>
       <div class="status-pill" id="server-status-pill">
         <span class="status-dot"></span>
         <span id="server-status-text">Checking API Server...</span>
@@ -314,6 +315,18 @@
         <span class="badge-method badge-patch">PATCH</span>
         <span>/api/leaves/:id/status</span>
       </a>
+
+      <div class="sidebar-section-title" style="margin-top: 1.5rem;">Corporate Purchases</div>
+      <a href="#endpoint-purchases-get" class="endpoint-nav-link">
+        <span class="badge-method badge-get">GET</span>
+        <span>/api/purchases</span>
+      </a>
+      <a href="#endpoint-purchases-post" class="endpoint-nav-link">
+        <span class="badge-method badge-post">POST</span>
+        <span>/api/purchases</span>
+      </a>
+
+      <div class="sidebar-section-title" style="margin-top: 1.5rem;">Analytics & Stats</div>
       <a href="#endpoint-stats" class="endpoint-nav-link">
         <span class="badge-method badge-get">GET</span>
         <span>/api/stats</span>

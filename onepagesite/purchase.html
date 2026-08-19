@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ApexHR Purchase & Asset Management Portal — Track corporate software licenses, equipment purchase dates, renewals, and invoice receipts with automated workflows.">
+  <title>Corporate Purchases & Invoices | ApexHR Enterprise Portal</title>
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="home-style.css">
+  <link rel="stylesheet" href="login-style.css">
+  <style>
+    .purchase-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 1.75rem;
+    }
+    @media (max-width: 992px) {
+      .purchase-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .order-summary-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid var(--border-glass-bright);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      position: sticky;
+      top: 90px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.6rem 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+      font-size: 0.9rem;
+    }
+    .summary-row.total-row {
+      border-top: 2px solid rgba(255, 255, 255, 0.15);
+      border-bottom: none;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #38bdf8;
+      padding-top: 0.9rem;
+    }
+    .date-highlight-pill {
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: var(--radius-sm);
+      padding: 0.4rem 0.75rem;
+      font-size: 0.825rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #a5b4fc;
+      margin-top: 0.5rem;
+    }
+    .item-catalog-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .catalog-item-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--color-card-border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-align: left;
+    }
+    .catalog-item-card:hover, .catalog-item-card.selected {
+      border-color: var(--accent-primary);
+      background: rgba(99, 102, 241, 0.12);
+      transform: translateY(-2px);
+    }
+    .catalog-item-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 0.25rem;
+      color: var(--text-primary);
+    }
+    .catalog-item-price {
+      color: #38bdf8;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .invoice-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .invoice-modal-card {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius-lg);
+      max-width: 620px;
+      width: 100%;
+      padding: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .invoice-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Ambient Glowing Backdrops -->
+  <div class="ambient-glow glow-top-left"></div>
+  <div class="ambient-glow glow-top-right"></div>
+
+  <!-- =========================================================================
+       1. NAVIGATION HEADER
+       ========================================================================= -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <a href="index.html" class="nav-brand">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <span class="brand-title">Apex<span>HR</span></span>
+      </a>
+
+      <nav>
+        <ul class="nav-menu" id="nav-menu">
+          <li><a href="index.html#hero" class="nav-link">Home</a></li>
+          <li><a href="index.html#features" class="nav-link">Features</a></li>
+          <li><a href="index.html#pricing" class="nav-link">Pricing</a></li>
+          <li><a href="purchase.html" class="nav-link active" style="color:#38bdf8; font-weight:700;">🛒 Purchases & Store</a></li>
+          <li><a href="about.html" class="nav-link">About</a></li>
+          <li><a href="contact.html" class="nav-link">Contact</a></li>
+          <li><a href="api-docs.html" class="nav-link" style="color: #818cf8;">⚡ API Docs</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-actions">
+        <a href="loginpage.html" class="btn btn-secondary btn-sm">Sign In</a>
+        <a href="loginpage.html" class="btn btn-primary btn-sm btn-glow">Launch Portal</a>
+        <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle Navigation">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       2. PAGE HERO & METRICS BANNER
+       ========================================================================= -->
+  <section class="page-hero">
+    <div class="container">
+      <div class="hero-content">
+        <div class="breadcrumb-row">
+          <a href="index.html">Home</a>
+          <span>/</span>
+          <span>Corporate Store & Purchasing</span>
+        </div>
+        <div class="badge-pill">
+          <span class="badge-dot"></span>
+          <span>Enterprise License & Asset Procurement Engine</span>
+        </div>
+        <h1 class="hero-title">
+          Corporate <span class="gradient-text">Purchases, Orders & Invoices</span>
+        </h1>
+        <p class="hero-subtitle">
+          Acquire software licenses, employee hardware workstations, and team assets with exact purchase date tracking, automated warranty/renewal calculators, and formal receipt generation.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary Statistics Banner -->
+  <section class="section" style="padding-top: 0;">
+    <div class="container">
+      <div class="metrics-grid metrics-grid-4">
+        <div class="metric-card">
+          <div class="metric-icon icon-blue">💳</div>
+          <div class="metric-content">
+            <span class="metric-value" id="stat-total-spend">$12,424</span>
+            <span class="metric-label">Total Spend Recorded</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon icon-green">📦</div>
+          <div class="metric-content">
+            <span class="metric-value" id="stat-completed-orders">4</span>
+            <span class="metric-label">Completed Orders</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon icon-amber">⏳</div>
+          <div class="metric-content">
+            <span class="metric-value" id="stat-pending-orders">1</span>
+            <span class="metric-label">Processing / Pending</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon icon-purple">📅</div>
+          <div class="metric-content">
+            <span class="metric-value" id="live-today-date">Aug 19, 2026</span>
+            <span class="metric-label">System Active Date</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       3. MAIN INTERACTIVE PURCHASING & ORDERS WORKSPACE
+       ========================================================================= -->
+  <section class="section" style="padding-top: 0;">
+    <div class="container">
+
+      <!-- View Tab Switchers -->
+      <div class="table-filter-group" style="margin-bottom: 1.5rem; justify-content: flex-start; gap: 0.6rem;">
+        <button type="button" class="btn btn-primary btn-sm active" id="tab-btn-checkout" data-view="checkout">
+          🛒 New Purchase / Checkout
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="tab-btn-history" data-view="history">
+          📋 Orders & Invoices Ledger (<span id="orders-badge-count">5</span>)
+        </button>
+      </div>
+
+      <!-- VIEW 1: NEW PURCHASE / CHECKOUT -->
+      <div id="view-checkout" class="purchase-view-content">
+        <div class="purchase-grid">
+          <!-- Left Column: Catalog & Order Form -->
+          <div class="card-box">
+            <div class="card-header">
+              <h2 class="card-title-sm">
+                <span>🛍️</span> Select Product or Custom Asset
+              </h2>
+              <p class="card-subtitle-sm">Choose from popular enterprise licenses or configure custom equipment.</p>
+            </div>
+
+            <!-- Quick Product Catalog -->
+            <div class="item-catalog-grid">
+              <div class="catalog-item-card selected" data-item="ApexHR Enterprise Plan (50 Seats)" data-price="3588" data-category="Software License" data-cycle="Annual">
+                <div class="catalog-item-title">💼 ApexHR Enterprise</div>
+                <div class="card-subtitle-sm">50 Seats • Annual Plan</div>
+                <div class="catalog-item-price">$3,588 / yr</div>
+              </div>
+              <div class="catalog-item-card" data-item="Apple MacBook Pro 16\" M3 Max" data-price="3499" data-category="Hardware Equipment" data-cycle="One-Time">
+                <div class="catalog-item-title">💻 MacBook Pro 16" M3</div>
+                <div class="card-subtitle-sm">36GB RAM • 1TB SSD</div>
+                <div class="catalog-item-price">$3,499</div>
+              </div>
+              <div class="catalog-item-card" data-item="Dell UltraSharp 32\" 4K Monitor" data-price="699" data-category="Hardware Equipment" data-cycle="One-Time">
+                <div class="catalog-item-title">🖥️ Dell 32" 4K Monitor</div>
+                <div class="card-subtitle-sm">USB-C Hub • HDR 600</div>
+                <div class="catalog-item-price">$699</div>
+              </div>
+              <div class="catalog-item-card" data-item="Custom Equipment / Software" data-price="500" data-category="Office Asset" data-cycle="One-Time">
+                <div class="catalog-item-title">⚙️ Custom Purchase</div>
+                <div class="card-subtitle-sm">Enter Custom Details</div>
+                <div class="catalog-item-price">Custom $</div>
+              </div>
+            </div>
+
+            <!-- Purchase Form -->
+            <form id="purchase-order-form">
+              <div class="form-group">
+                <label for="purchase-item-name" class="form-label">Item / Plan Name <span class="required-star">*</span></label>
+                <input type="text" id="purchase-item-name" class="form-input" value="ApexHR Enterprise Plan (50 Seats)" required>
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="purchase-category" class="form-label">Category</label>
+                  <select id="purchase-category" class="form-input form-select" required>
+                    <option value="Software License">Software License</option>
+                    <option value="Hardware Equipment">Hardware Equipment</option>
+                    <option value="Office Asset">Office Asset</option>
+                    <option value="Cloud Infrastructure">Cloud Infrastructure</option>
+                    <option value="Training & Certification">Training & Certification</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="purchase-billing-cycle" class="form-label">Billing / Renewal Type</label>
+                  <select id="purchase-billing-cycle" class="form-input form-select" required>
+                    <option value="Annual">Annual Subscription (1 Year Renewal)</option>
+                    <option value="Monthly">Monthly Recurring</option>
+                    <option value="One-Time">One-Time Asset (3-Year Warranty)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Date Selection Row -->
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="purchase-date" class="form-label">
+                    Purchase Date <span class="required-star">*</span>
+                    <span class="field-hint">(Date of acquisition)</span>
+                  </label>
+                  <div class="input-wrapper">
+                    <span class="input-icon">📅</span>
+                    <input type="date" id="purchase-date" class="form-input" required>
+                  </div>
+                  <span class="error-msg" id="purchase-date-error">Please select a valid purchase date.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="renewal-date" class="form-label">
+                    Next Renewal / Warranty Expiry
+                    <span class="field-hint">(Auto-calculated)</span>
+                  </label>
+                  <div class="input-wrapper">
+                    <span class="input-icon">⏳</span>
+                    <input type="date" id="renewal-date" class="form-input" required>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Live Date Validity Banner -->
+              <div class="date-highlight-pill" id="date-calculation-pill">
+                <span>⏱️</span>
+                <span>Purchase active from <strong id="pill-start-date">Today</strong> until <strong id="pill-end-date">Aug 19, 2027</strong> (1 Year Coverage)</span>
+              </div>
+
+              <!-- Quantity & Price Row -->
+              <div class="form-row-2 mt-4">
+                <div class="form-group">
+                  <label for="purchase-quantity" class="form-label">Quantity / Seats</label>
+                  <input type="number" id="purchase-quantity" class="form-input" min="1" max="1000" value="1" required>
+                </div>
+                <div class="form-group">
+                  <label for="purchase-unit-price" class="form-label">Unit Price ($ USD) <span class="required-star">*</span></label>
+                  <input type="number" id="purchase-unit-price" class="form-input" min="1" step="0.01" value="3588.00" required>
+                </div>
+              </div>
+
+              <!-- Buyer & Department Details -->
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="purchase-buyer-name" class="form-label">Buyer / Authorizer Name <span class="required-star">*</span></label>
+                  <input type="text" id="purchase-buyer-name" class="form-input" value="Alex Johnson" required>
+                </div>
+                <div class="form-group">
+                  <label for="purchase-department" class="form-label">Department</label>
+                  <select id="purchase-department" class="form-input form-select" required>
+                    <option value="Engineering">Engineering</option>
+                    <option value="Human Resources">Human Resources</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Product Design">Product Design</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Executive Management">Executive Management</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Payment Method & Notes -->
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="purchase-payment-method" class="form-label">Payment Method</label>
+                  <select id="purchase-payment-method" class="form-input form-select" required>
+                    <option value="Corporate Credit Card">Corporate Credit Card (Visa/Mastercard)</option>
+                    <option value="Corporate PO / Net 30">Corporate PO (Net 30 Days)</option>
+                    <option value="Bank Wire Transfer">Bank Wire Transfer</option>
+                    <option value="PayPal / Corporate">PayPal Enterprise</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="purchase-status-select" class="form-label">Initial Order Status</label>
+                  <select id="purchase-status-select" class="form-input form-select" required>
+                    <option value="Completed">Completed (Paid & Active)</option>
+                    <option value="Processing">Processing (Under Fulfillment)</option>
+                    <option value="Pending Approval">Pending Management Approval</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="purchase-notes" class="form-label">Order Notes / Justification</label>
+                <textarea id="purchase-notes" class="form-input form-textarea" rows="2" placeholder="Business justification, warranty details, or vendor references..."></textarea>
+              </div>
+
+              <button type="submit" id="submit-purchase-btn" class="btn btn-primary btn-block btn-lg" style="margin-top: 1rem;">
+                <span>💳 Authorize & Complete Purchase Order</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Right Column: Order Summary Card -->
+          <div class="order-summary-card">
+            <div class="card-header">
+              <h2 class="card-title-sm">
+                <span>🧾</span> Order Summary
+              </h2>
+              <p class="card-subtitle-sm">Review charges and effective dates.</p>
+            </div>
+
+            <div class="summary-row">
+              <span style="color:var(--text-secondary)">Selected Item:</span>
+              <strong id="sum-item-name" style="text-align: right; max-width: 180px;">ApexHR Enterprise Plan</strong>
+            </div>
+            <div class="summary-row">
+              <span style="color:var(--text-secondary)">Category:</span>
+              <span id="sum-category" class="badge badge-pending">Software License</span>
+            </div>
+            <div class="summary-row">
+              <span style="color:var(--text-secondary)">Purchase Date:</span>
+              <strong id="sum-purchase-date">2026-08-19</strong>
+            </div>
+            <div class="summary-row">
+              <span style="color:var(--text-secondary)">Valid Until / Renewal:</span>
+              <strong id="sum-renewal-date" style="color:#38bdf8;">2027-08-19</strong>
+            </div>
+            <div class="summary-row">
+              <span style="color:var(--text-secondary)">Quantity / Seats:</span>
+              <span id="sum-qty">1</span>
+            </div>
+            <div class="summary-row">
+              <span style="color:var(--text-secondary)">Subtotal:</span>
+              <span id="sum-subtotal">$3,588.00</span>
+            </div>
+            <div class="summary-row">
+              <span style="color:var(--text-secondary)">Est. Sales Tax / VAT (10%):</span>
+              <span id="sum-tax">$358.80</span>
+            </div>
+            <div class="summary-row total-row">
+              <span>Total Amount:</span>
+              <span id="sum-total">$3,946.80</span>
+            </div>
+
+            <!-- Guarantee Box -->
+            <div class="policy-notice-box" style="margin-top: 1.5rem; margin-bottom: 0;">
+              <div class="policy-notice-header">
+                <span class="policy-badge">🔒 Enterprise Guarantee</span>
+              </div>
+              <p style="font-size: 0.775rem; color: var(--text-secondary); line-height: 1.4;">
+                All purchases are recorded into the company asset ledger with instantaneous PDF invoice availability and SLA support.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: ORDERS & INVOICES LEDGER -->
+      <div id="view-history" class="purchase-view-content hidden">
+        <div class="card-box">
+          <div class="card-header flex-between flex-wrap">
+            <div>
+              <h2 class="card-title-sm">
+                <span>📋</span> Master Purchase Orders & Invoices Ledger
+              </h2>
+              <p class="card-subtitle-sm">Comprehensive log of company purchases, software licenses, and hardware assets.</p>
+            </div>
+            <!-- Search & Filters -->
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+              <input type="text" id="ledger-search-input" class="form-input" placeholder="Search PO #, item, buyer, dept..." style="width: 260px; padding: 0.5rem 0.85rem;">
+              <select id="ledger-status-filter" class="form-input form-select" style="width: 160px; padding: 0.5rem 0.85rem;">
+                <option value="All">All Statuses</option>
+                <option value="Completed">Completed</option>
+                <option value="Processing">Processing</option>
+                <option value="Pending Approval">Pending Approval</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Purchase Orders Table -->
+          <div class="table-responsive">
+            <table class="custom-table" id="purchases-table">
+              <thead>
+                <tr>
+                  <th>PO & Invoice #</th>
+                  <th>Item & Category</th>
+                  <th>Purchase Date</th>
+                  <th>Renewal / Expiry</th>
+                  <th>Buyer & Dept</th>
+                  <th>Total Amount</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="purchases-tbody">
+                <!-- Dynamically Populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       4. PRINTABLE INVOICE RECEIPT MODAL
+       ========================================================================= -->
+  <div id="invoice-modal" class="invoice-modal-backdrop hidden">
+    <div class="invoice-modal-card">
+      <div class="invoice-header">
+        <div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <div class="brand-icon" style="width:32px; height:32px; font-size:1rem;">🏢</div>
+            <h2 style="font-size:1.4rem; font-weight:800; color:var(--text-primary);">ApexHR Enterprise</h2>
+          </div>
+          <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">Corporate Workforce & Asset Management</p>
+        </div>
+        <div style="text-align: right;">
+          <span class="badge badge-approved" id="modal-invoice-status">COMPLETED</span>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.35rem;" id="modal-invoice-id">INV-2026-801</div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem; font-size:0.85rem;">
+        <div>
+          <span style="color:var(--text-muted); display:block;">Billed To:</span>
+          <strong id="modal-buyer-name">Alex Johnson</strong><br>
+          <span id="modal-buyer-email" style="color:var(--text-secondary);">employee@company.com</span><br>
+          <span id="modal-buyer-dept" style="color:var(--text-muted);">Engineering Dept</span>
+        </div>
+        <div style="text-align:right;">
+          <span style="color:var(--text-muted); display:block;">Transaction Details:</span>
+          <strong>Purchase Date:</strong> <span id="modal-purchase-date">2026-08-19</span><br>
+          <strong>Valid / Renewal:</strong> <span id="modal-renewal-date">2027-08-19</span><br>
+          <strong>Payment:</strong> <span id="modal-payment-method">Corporate Credit Card</span>
+        </div>
+      </div>
+
+      <div class="table-responsive" style="margin-bottom:1.5rem;">
+        <table class="custom-table" style="font-size:0.85rem;">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Qty</th>
+              <th>Unit Price</th>
+              <th style="text-align:right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td id="modal-item-name">ApexHR Enterprise Plan</td>
+              <td id="modal-item-category">Software License</td>
+              <td id="modal-item-qty">1</td>
+              <td id="modal-unit-price">$3,588.00</td>
+              <td id="modal-item-subtotal" style="text-align:right; font-weight:700;">$3,588.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:0.75rem; margin-bottom:1.5rem;">
+        <div style="display:flex; justify-content:space-between; font-size:0.875rem; margin-bottom:0.35rem;">
+          <span style="color:var(--text-muted);">Subtotal:</span>
+          <span id="modal-calc-subtotal">$3,588.00</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.875rem; margin-bottom:0.35rem;">
+          <span style="color:var(--text-muted);">Estimated Tax (10%):</span>
+          <span id="modal-calc-tax">$358.80</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:1.1rem; font-weight:700; color:#38bdf8;">
+          <span>Total Paid:</span>
+          <span id="modal-calc-total">$3,946.80</span>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary btn-sm" id="close-modal-btn">Close</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="window.print();">🖨️ Print Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="api-client.js"></script>
+  <script src="purchase-script.js"></script>
+</body>
+</html>

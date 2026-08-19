@@ -426,19 +426,138 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    // 5. Dashboard Statistics Endpoint
+    // 5. Purchase Orders & Asset Invoices Endpoints
+    if (pathname === '/api/purchases' && method === 'GET') {
+      let result = store.purchases ? [...store.purchases] : [];
+      const search = parsedUrl.query.search;
+      const status = parsedUrl.query.status;
+      const category = parsedUrl.query.category;
+
+      if (search) {
+        const q = search.toLowerCase();
+        result = result.filter(p => 
+          (p.item && p.item.toLowerCase().includes(q)) || 
+          (p.id && p.id.toLowerCase().includes(q)) || 
+          (p.invoiceNumber && p.invoiceNumber.toLowerCase().includes(q)) ||
+          (p.buyerName && p.buyerName.toLowerCase().includes(q)) ||
+          (p.department && p.department.toLowerCase().includes(q))
+        );
+      }
+
+      if (status && status !== 'All') {
+        result = result.filter(p => p.status.toLowerCase() === status.toLowerCase());
+      }
+
+      if (category && category !== 'All') {
+        result = result.filter(p => p.category.toLowerCase() === category.toLowerCase());
+      }
+
+      const totalSpend = (store.purchases || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const completedCount = (store.purchases || []).filter(p => p.status === 'Completed').length;
+      const pendingCount = (store.purchases || []).filter(p => p.status === 'Pending Approval' || p.status === 'Processing').length;
+
+      return sendJSON(res, 200, {
+        count: result.length,
+        purchases: result,
+        stats: {
+          totalSpend,
+          completedCount,
+          pendingCount,
+          totalOrders: (store.purchases || []).length
+        }
+      });
+    }
+
+    if (pathname === '/api/purchases' && method === 'POST') {
+      const payload = await parseRequestBody(req);
+
+      if (!payload.item || !payload.amount || !payload.purchaseDate) {
+        return sendJSON(res, 400, { error: 'Missing required purchase fields (item, amount, purchaseDate)' });
+      }
+
+      if (!store.purchases) store.purchases = [];
+
+      const newId = `PO-${100 + store.purchases.length + 1}`;
+      const newInvoice = `INV-2026-${800 + store.purchases.length + 1}`;
+
+      // Calculate default renewal / warranty date if not given (+1 year)
+      let renewalDate = payload.renewalDate;
+      if (!renewalDate && payload.purchaseDate) {
+        const [y, m, d] = payload.purchaseDate.split('-').map(Number);
+        const addYears = payload.category === 'Hardware Equipment' || payload.category === 'Office Asset' ? 3 : 1;
+        const dt = new Date(y + addYears, m - 1, d);
+        renewalDate = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      }
+
+      const newPurchase = {
+        id: newId,
+        invoiceNumber: newInvoice,
+        item: payload.item,
+        category: payload.category || 'Software License',
+        purchaseDate: payload.purchaseDate,
+        renewalDate: renewalDate || payload.purchaseDate,
+        quantity: Number(payload.quantity) || 1,
+        billingCycle: payload.billingCycle || 'One-Time',
+        buyerName: payload.buyerName || 'Alex Johnson',
+        buyerEmail: payload.buyerEmail || 'employee@company.com',
+        department: payload.department || 'Engineering',
+        amount: Number(payload.amount),
+        paymentMethod: payload.paymentMethod || 'Corporate Credit Card',
+        status: payload.status || 'Completed',
+        notes: payload.notes || 'Order placed via ApexHR Store & Asset Purchasing Portal.'
+      };
+
+      store.purchases.unshift(newPurchase);
+      saveData(store);
+
+      return sendJSON(res, 201, {
+        message: 'Purchase order placed successfully',
+        purchase: newPurchase
+      });
+    }
+
+    if (pathname.match(/^\/api\/purchases\/([A-Za-z0-9-]+)\/status$/) && method === 'PATCH') {
+      const matches = pathname.match(/^\/api\/purchases\/([A-Za-z0-9-]+)\/status$/);
+      const purchaseId = matches[1];
+      const payload = await parseRequestBody(req);
+
+      if (!payload.status) {
+        return sendJSON(res, 400, { error: 'Status is required' });
+      }
+
+      if (!store.purchases) store.purchases = [];
+      const pIndex = store.purchases.findIndex(p => p.id === purchaseId);
+      if (pIndex === -1) {
+        return sendJSON(res, 404, { error: `Purchase order ${purchaseId} not found` });
+      }
+
+      store.purchases[pIndex].status = payload.status;
+      store.purchases[pIndex].updatedAt = new Date().toISOString();
+      saveData(store);
+
+      return sendJSON(res, 200, {
+        message: `Purchase ${purchaseId} status updated to ${payload.status}`,
+        purchase: store.purchases[pIndex]
+      });
+    }
+
+    // 6. Dashboard Statistics Endpoint
     if (pathname === '/api/stats' && method === 'GET') {
       const totalEmployees = store.employees.length;
       const pendingRequests = store.leaves.filter(l => l.status === 'Pending').length;
       const approvedLeaves = store.leaves.filter(l => l.status === 'Approved').length;
       const rejectedLeaves = store.leaves.filter(l => l.status === 'Rejected').length;
+      const totalPurchases = (store.purchases || []).length;
+      const totalSpend = (store.purchases || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
       return sendJSON(res, 200, {
         totalEmployees,
         pendingRequests,
         approvedLeaves,
         rejectedLeaves,
-        totalLeaves: store.leaves.length
+        totalLeaves: store.leaves.length,
+        totalPurchases,
+        totalSpend
       });
     }
 
