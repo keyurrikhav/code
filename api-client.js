@@ -130,17 +130,46 @@ const ApexAPI = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(leaveData)
         });
-        if (res.ok) return await res.json();
+        const data = await res.json();
+        if (!res.ok) {
+          return { error: data.error || 'Failed to submit leave' };
+        }
+        return data;
       } catch (err) {
         console.warn('API error submitting leave:', err);
       }
     }
 
-    // Local fallback
+    // Local fallback validation
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    if (leaveData.startDate < todayStr) {
+      return { error: 'Start date cannot be in the past' };
+    }
+    if (leaveData.endDate < leaveData.startDate) {
+      return { error: 'End date must be on or after start date' };
+    }
+    if (Number(leaveData.days) > 7) {
+      return { error: 'Leave duration cannot exceed 7 days per application' };
+    }
+
     const localLeaves = JSON.parse(localStorage.getItem('apex_leave_requests') || '[]');
+    const empId = leaveData.empId || 'EMP-101';
+    
+    // Check overlap
+    const hasOverlap = localLeaves.some(l => 
+      l.empId === empId && 
+      ['Pending', 'Approved'].includes(l.status) && 
+      !(leaveData.endDate < l.startDate || leaveData.startDate > l.endDate)
+    );
+    if (hasOverlap) {
+      return { error: 'You already have an active leave request overlapping these dates' };
+    }
+
     const newLeave = {
       id: `LR-${Math.floor(100 + Math.random() * 900)}`,
-      empId: leaveData.empId || 'EMP-101',
+      empId: empId,
       empName: leaveData.empName || 'Alex Johnson',
       empEmail: leaveData.empEmail || 'employee@company.com',
       type: leaveData.type,
@@ -149,7 +178,7 @@ const ApexAPI = {
       days: leaveData.days || 1,
       reason: leaveData.reason,
       status: 'Pending',
-      submittedAt: new Date().toISOString().split('T')[0]
+      submittedAt: todayStr
     };
     localLeaves.unshift(newLeave);
     localStorage.setItem('apex_leave_requests', JSON.stringify(localLeaves));

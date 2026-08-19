@@ -41,14 +41,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   const empNameDisplay = document.getElementById('emp-name');
   const empAvatarDisplay = document.getElementById('emp-avatar');
   const leaveApplyForm = document.getElementById('leave-apply-form');
+  const leaveTypeSelect = document.getElementById('leave-type');
   const startDateInput = document.getElementById('start-date');
   const endDateInput = document.getElementById('end-date');
+  const startDateError = document.getElementById('start-date-error');
+  const endDateError = document.getElementById('end-date-error');
+  const durationTypeContainer = document.getElementById('duration-type-container');
+  const dayPortionRadios = document.querySelectorAll('input[name="day-portion"]');
+  const overlapErrorBanner = document.getElementById('overlap-error-banner');
+  const overlapErrorText = document.getElementById('overlap-error-text');
+  const balanceErrorBanner = document.getElementById('balance-error-banner');
+  const balanceErrorText = document.getElementById('balance-error-text');
+  const limitErrorBanner = document.getElementById('limit-error-banner');
   const daysBanner = document.getElementById('days-calculation-banner');
   const daysCountDisplay = document.getElementById('calculated-days-count');
+  const daysLimitStatus = document.getElementById('days-limit-status');
+  const daysMeterFill = document.getElementById('days-meter-fill');
+  const leaveReasonInput = document.getElementById('leave-reason');
+  const reasonError = document.getElementById('reason-error');
+  const reasonCharCount = document.getElementById('reason-char-count');
+  const submitLeaveBtn = document.getElementById('submit-leave-btn');
   const empHistoryTbody = document.getElementById('emp-history-tbody');
   const empVacationBalance = document.getElementById('emp-vacation-balance');
   const empPendingCount = document.getElementById('emp-pending-count');
   const empApprovedCount = document.getElementById('emp-approved-count');
+  const empFilterBtns = document.querySelectorAll('#emp-filter-group .btn-filter');
+
+  // Employee State
+  let currentEmpLeaves = [];
+  let currentEmpAllowance = 18;
+  let currentEmpApprovedDays = 0;
+  let activeEmpFilter = 'all';
 
   // Admin View Elements
   const sidebarNavItems = document.querySelectorAll('.sidebar-nav .nav-item');
@@ -89,6 +112,36 @@ document.addEventListener('DOMContentLoaded', async () => {
       toast.style.transition = 'all 0.3s ease';
       setTimeout(() => toast.remove(), 300);
     }, duration);
+  }
+
+  // --- Helper Date Functions ---
+  // Returns local date formatted as YYYY-MM-DD (timezone-safe)
+  function getLocalDateString(d = new Date()) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // Add days to a YYYY-MM-DD string
+  function addDaysToDateString(dateStr, numDays) {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    date.setDate(date.getDate() + numDays);
+    return getLocalDateString(date);
+  }
+
+  // Calculate difference in whole calendar days inclusive (e.g. Aug 10 to Aug 10 = 1 day)
+  function getDayDiffInclusive(startStr, endStr) {
+    if (!startStr || !endStr) return 0;
+    const [y1, m1, d1] = startStr.split('-').map(Number);
+    const [y2, m2, d2] = endStr.split('-').map(Number);
+    const dStart = new Date(y1, m1 - 1, d1);
+    const dEnd = new Date(y2, m2 - 1, d2);
+    const diffTime = dEnd.getTime() - dStart.getTime();
+    if (diffTime < 0) return -1;
+    return Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
   }
 
   // --- Password Toggle ---
@@ -145,7 +198,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           email: user.email,
           role: user.role,
           name: user.name,
-          id: user.empId || 'EMP-101'
+          id: user.empId || 'EMP-101',
+          allowance: user.allowance || 18
         };
         localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
 
@@ -185,66 +239,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // =========================================================================
-  // EMPLOYEE PORTAL LOGIC
+  // EMPLOYEE PORTAL LOGIC & LEAVE VALIDATION ENGINE
   // =========================================================================
-  async function renderEmployeePortal() {
-    const session = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || {};
-    empNameDisplay.textContent = session.name || 'Alex Johnson';
-    empAvatarDisplay.textContent = (session.name || 'A').charAt(0).toUpperCase();
 
-    const allLeaves = await ApexAPI.getLeaves();
-    const leaves = allLeaves.filter(l => l.empEmail === session.email || l.empId === session.id);
-
-    // Update summary counters
-    const pending = leaves.filter(l => l.status === 'Pending').length;
-    const approved = leaves.filter(l => l.status === 'Approved').length;
-    let approvedDays = leaves.filter(l => l.status === 'Approved').reduce((acc, cur) => acc + cur.days, 0);
-
-    empPendingCount.textContent = pending;
-    empApprovedCount.textContent = approved;
-    empVacationBalance.textContent = `${Math.max(0, 18 - approvedDays)} Days`;
-
-    // Render Employee Table
-    empHistoryTbody.innerHTML = '';
-    if (leaves.length === 0) {
-      empHistoryTbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--color-text-secondary);">No leave history found. Apply above!</td></tr>`;
-      return;
-    }
-
-    [...leaves].reverse().forEach(l => {
-      const tr = document.createElement('tr');
-      const badgeClass = l.status === 'Approved' ? 'badge-approved' : l.status === 'Rejected' ? 'badge-rejected' : 'badge-pending';
-      tr.innerHTML = `
-        <td><strong>${l.type}</strong></td>
-        <td>${l.startDate} &rarr; ${l.endDate}</td>
-        <td><strong>${l.days} Day(s)</strong></td>
-        <td>${l.reason}</td>
-        <td><span class="badge ${badgeClass}"><span class="badge-dot"></span> ${l.status}</span></td>
-      `;
-      empHistoryTbody.appendChild(tr);
-    });
-  }
-
-  // Date Error Spans
-  const startDateError = document.getElementById('start-date-error');
-  const endDateError = document.getElementById('end-date-error');
-
-  // Enforce today as minimum selectable date for leave applications
+  // Enforce today as minimum selectable date and max 7 days constraint
   function applyDateConstraints() {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     
-    if (startDateInput && endDateInput) {
+    if (startDateInput) {
       startDateInput.min = todayStr;
-      endDateInput.min = todayStr;
+    }
+    if (endDateInput) {
+      if (startDateInput && startDateInput.value && startDateInput.value >= todayStr) {
+        endDateInput.min = startDateInput.value;
+        endDateInput.max = addDaysToDateString(startDateInput.value, 6); // Strict 7-day maximum!
+      } else {
+        endDateInput.min = todayStr;
+        endDateInput.removeAttribute('max');
+      }
     }
   }
-  applyDateConstraints();
 
-  // Validate start date
+  // Validate Start Date
   function validateStartDate() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStr = getLocalDateString();
     const val = startDateInput.value;
 
     if (!val) {
@@ -253,31 +271,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       return false;
     }
 
-    const selectedDate = new Date(val);
-    selectedDate.setHours(0, 0, 0, 0);
-
-    if (selectedDate < today) {
+    if (val < todayStr) {
       startDateInput.classList.add('is-invalid');
       if (startDateError) {
-        startDateError.textContent = 'Start date cannot be in the past.';
+        startDateError.textContent = `Start date cannot be in the past (minimum is ${todayStr}).`;
         startDateError.classList.add('visible');
       }
-      showToast('Start date cannot be in the past', 'error');
       return false;
     } else {
       startDateInput.classList.remove('is-invalid');
       if (startDateError) startDateError.classList.remove('visible');
       
+      // Update End Date bounds
       endDateInput.min = val;
-      if (endDateInput.value && endDateInput.value < val) {
+      endDateInput.max = addDaysToDateString(val, 6); // Max 7 calendar days inclusive
+      
+      if (!endDateInput.value || endDateInput.value < val) {
         endDateInput.value = val;
+      } else if (endDateInput.value > endDateInput.max) {
+        endDateInput.value = endDateInput.max;
       }
       return true;
     }
   }
 
-  // Validate end date
+  // Validate End Date
   function validateEndDate() {
+    const todayStr = getLocalDateString();
     const startVal = startDateInput.value;
     const endVal = endDateInput.value;
 
@@ -287,49 +307,266 @@ document.addEventListener('DOMContentLoaded', async () => {
       return false;
     }
 
+    if (endVal < todayStr) {
+      endDateInput.classList.add('is-invalid');
+      if (endDateError) {
+        endDateError.textContent = 'End date cannot be in the past.';
+        endDateError.classList.add('visible');
+      }
+      return false;
+    }
+
     if (startVal && endVal < startVal) {
       endDateInput.classList.add('is-invalid');
       if (endDateError) {
         endDateError.textContent = 'End date must be on or after start date.';
         endDateError.classList.add('visible');
       }
-      showToast('End date must be on or after start date', 'error');
       return false;
-    } else {
-      endDateInput.classList.remove('is-invalid');
-      if (endDateError) endDateError.classList.remove('visible');
-      return true;
     }
+
+    if (startVal) {
+      const diffDays = getDayDiffInclusive(startVal, endVal);
+      if (diffDays > 7) {
+        endDateInput.classList.add('is-invalid');
+        if (endDateError) {
+          endDateError.textContent = `Leave duration cannot exceed 7 consecutive days (selected: ${diffDays} days).`;
+          endDateError.classList.add('visible');
+        }
+        if (limitErrorBanner) limitErrorBanner.classList.remove('hidden');
+        return false;
+      }
+    }
+
+    endDateInput.classList.remove('is-invalid');
+    if (endDateError) endDateError.classList.remove('visible');
+    if (limitErrorBanner) limitErrorBanner.classList.add('hidden');
+    return true;
   }
 
-  // Date calculation on input change
-  function calculateDays() {
+  // Check for Overlapping Leaves (Pending or Approved)
+  function checkLeaveOverlap(startStr, endStr) {
+    if (!currentEmpLeaves || currentEmpLeaves.length === 0) {
+      if (overlapErrorBanner) overlapErrorBanner.classList.add('hidden');
+      return null;
+    }
+
+    const activeLeaves = currentEmpLeaves.filter(l => ['Pending', 'Approved'].includes(l.status));
+    for (const l of activeLeaves) {
+      // Overlap occurs if !(end < l.startDate || start > l.endDate)
+      if (!(endStr < l.startDate || startStr > l.endDate)) {
+        if (overlapErrorBanner && overlapErrorText) {
+          overlapErrorText.textContent = `Conflicts with your ${l.status} leave: "${l.type}" (${l.startDate} to ${l.endDate}).`;
+          overlapErrorBanner.classList.remove('hidden');
+        }
+        return l;
+      }
+    }
+
+    if (overlapErrorBanner) overlapErrorBanner.classList.add('hidden');
+    return null;
+  }
+
+  // Comprehensive Date, Duration, and Balance Calculation
+  function calculateDaysAndValidate() {
     const isStartValid = validateStartDate();
     const isEndValid = validateEndDate();
 
-    if (isStartValid && isEndValid && startDateInput.value && endDateInput.value) {
-      const start = new Date(startDateInput.value);
-      const end = new Date(endDateInput.value);
-      const diffTime = Math.abs(end - start);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      
-      daysCountDisplay.textContent = diffDays;
-      daysBanner.classList.remove('hidden');
-      return diffDays;
-    } else {
-      daysBanner.classList.add('hidden');
+    if (!isStartValid || !isEndValid || !startDateInput.value || !endDateInput.value) {
+      if (daysBanner) daysBanner.classList.add('hidden');
+      if (overlapErrorBanner) overlapErrorBanner.classList.add('hidden');
+      if (balanceErrorBanner) balanceErrorBanner.classList.add('hidden');
       return 0;
     }
+
+    const startVal = startDateInput.value;
+    const endVal = endDateInput.value;
+    const dayDiff = getDayDiffInclusive(startVal, endVal);
+
+    if (dayDiff <= 0) {
+      if (daysBanner) daysBanner.classList.add('hidden');
+      return 0;
+    }
+
+    // Toggle duration type container (Half-day option only available for 1-day range)
+    let calculatedDuration = dayDiff;
+    if (dayDiff === 1) {
+      if (durationTypeContainer) durationTypeContainer.classList.remove('hidden');
+      const selectedPortion = document.querySelector('input[name="day-portion"]:checked')?.value || '1.0';
+      if (selectedPortion.startsWith('0.5')) {
+        calculatedDuration = 0.5;
+      }
+    } else {
+      if (durationTypeContainer) durationTypeContainer.classList.add('hidden');
+    }
+
+    // Update Days Banner & Progress Meter
+    if (daysBanner && daysCountDisplay) {
+      daysCountDisplay.textContent = calculatedDuration;
+      daysBanner.classList.remove('hidden');
+
+      if (daysMeterFill) {
+        const percent = Math.min(100, (dayDiff / 7) * 100);
+        daysMeterFill.style.width = `${percent}%`;
+        
+        if (dayDiff > 7) {
+          daysMeterFill.classList.add('exceeded');
+          if (daysLimitStatus) {
+            daysLimitStatus.textContent = 'Exceeds 7-Day Limit!';
+            daysLimitStatus.classList.add('exceeded');
+          }
+        } else {
+          daysMeterFill.classList.remove('exceeded');
+          if (daysLimitStatus) {
+            daysLimitStatus.textContent = `${calculatedDuration} / 7 Days Allowed`;
+            daysLimitStatus.classList.remove('exceeded');
+          }
+        }
+      }
+    }
+
+    // Check Overlap Conflict
+    checkLeaveOverlap(startVal, endVal);
+
+    // Check Leave Balance Quota
+    const availableBalance = Math.max(0, currentEmpAllowance - currentEmpApprovedDays);
+    if (calculatedDuration > availableBalance) {
+      if (balanceErrorBanner && balanceErrorText) {
+        balanceErrorText.textContent = `Requested ${calculatedDuration} day(s), but only ${availableBalance} day(s) remain in your quota.`;
+        balanceErrorBanner.classList.remove('hidden');
+      }
+    } else {
+      if (balanceErrorBanner) balanceErrorBanner.classList.add('hidden');
+    }
+
+    return calculatedDuration;
   }
 
-  if (startDateInput && endDateInput) {
-    startDateInput.addEventListener('change', calculateDays);
-    endDateInput.addEventListener('change', calculateDays);
-    startDateInput.addEventListener('input', calculateDays);
-    endDateInput.addEventListener('input', calculateDays);
+  // Attach Event Listeners to Inputs
+  if (startDateInput) {
+    startDateInput.addEventListener('change', () => {
+      validateStartDate();
+      calculateDaysAndValidate();
+    });
+    startDateInput.addEventListener('input', () => {
+      validateStartDate();
+      calculateDaysAndValidate();
+    });
   }
 
-  // Submit Leave Request
+  if (endDateInput) {
+    endDateInput.addEventListener('change', () => {
+      validateEndDate();
+      calculateDaysAndValidate();
+    });
+    endDateInput.addEventListener('input', () => {
+      validateEndDate();
+      calculateDaysAndValidate();
+    });
+  }
+
+  if (dayPortionRadios) {
+    dayPortionRadios.forEach(r => {
+      r.addEventListener('change', calculateDaysAndValidate);
+    });
+  }
+
+  if (leaveReasonInput && reasonCharCount) {
+    leaveReasonInput.addEventListener('input', () => {
+      const len = leaveReasonInput.value.trim().length;
+      reasonCharCount.textContent = `${len} / 5 min chars`;
+      if (len >= 5) {
+        reasonCharCount.classList.add('valid');
+        if (reasonError) reasonError.classList.remove('visible');
+      } else {
+        reasonCharCount.classList.remove('valid');
+      }
+    });
+  }
+
+  // Render Employee Portal Data
+  async function renderEmployeePortal() {
+    const session = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || {};
+    empNameDisplay.textContent = session.name || 'Alex Johnson';
+    empAvatarDisplay.textContent = (session.name || 'A').charAt(0).toUpperCase();
+
+    const allLeaves = await ApexAPI.getLeaves();
+    currentEmpLeaves = allLeaves.filter(l => l.empEmail === session.email || l.empId === session.id);
+    currentEmpAllowance = session.allowance || 18;
+
+    // Calculate metrics
+    const pending = currentEmpLeaves.filter(l => l.status === 'Pending').length;
+    const approved = currentEmpLeaves.filter(l => l.status === 'Approved').length;
+    currentEmpApprovedDays = currentEmpLeaves.filter(l => l.status === 'Approved').reduce((acc, cur) => acc + Number(cur.days || 0), 0);
+    const remainingBalance = Math.max(0, currentEmpAllowance - currentEmpApprovedDays);
+
+    if (empPendingCount) empPendingCount.textContent = pending;
+    if (empApprovedCount) empApprovedCount.textContent = approved;
+    if (empVacationBalance) empVacationBalance.textContent = `${remainingBalance} / ${currentEmpAllowance} Days`;
+
+    renderEmployeeHistoryTable();
+    applyDateConstraints();
+  }
+
+  // Render Employee History Table with Filters
+  function renderEmployeeHistoryTable() {
+    if (!empHistoryTbody) return;
+
+    let filtered = [...currentEmpLeaves];
+    if (activeEmpFilter !== 'all') {
+      filtered = filtered.filter(l => l.status.toLowerCase() === activeEmpFilter.toLowerCase());
+    }
+
+    empHistoryTbody.innerHTML = '';
+    if (filtered.length === 0) {
+      empHistoryTbody.innerHTML = `<tr><td colspan="6" class="text-center" style="color: var(--color-text-secondary); padding: 1.5rem;">No leave history matching filter "${activeEmpFilter}".</td></tr>`;
+      return;
+    }
+
+    [...filtered].reverse().forEach(l => {
+      const tr = document.createElement('tr');
+      const badgeClass = l.status === 'Approved' ? 'badge-approved' : l.status === 'Rejected' ? 'badge-rejected' : 'badge-pending';
+      const actionHtml = l.status === 'Pending'
+        ? `<button type="button" class="btn btn-outline-danger btn-xs cancel-leave-btn" data-id="${l.id}" title="Withdraw request">Cancel</button>`
+        : `<span style="font-size:0.75rem; color:var(--color-text-muted);">Resolved</span>`;
+
+      tr.innerHTML = `
+        <td><strong>${l.type}</strong></td>
+        <td>${l.startDate} &rarr; ${l.endDate}</td>
+        <td><strong>${l.days} Day(s)</strong></td>
+        <td style="max-width: 200px; word-break: break-word;">${l.reason}</td>
+        <td><span class="badge ${badgeClass}"><span class="badge-dot"></span> ${l.status}</span></td>
+        <td>${actionHtml}</td>
+      `;
+      empHistoryTbody.appendChild(tr);
+    });
+
+    // Attach cancel action listeners
+    empHistoryTbody.querySelectorAll('.cancel-leave-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (confirm(`Are you sure you want to cancel leave request ${id}?`)) {
+          await ApexAPI.deleteLeave(id);
+          showToast(`Leave request ${id} cancelled`, 'info');
+          await renderEmployeePortal();
+        }
+      });
+    });
+  }
+
+  // History Filter Buttons
+  if (empFilterBtns) {
+    empFilterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        empFilterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeEmpFilter = btn.getAttribute('data-emp-filter');
+        renderEmployeeHistoryTable();
+      });
+    });
+  }
+
+  // Submit Leave Request Handler
   leaveApplyForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -338,35 +575,97 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isEndValid = validateEndDate();
 
     if (!isStartValid || !isEndValid) {
-      showToast('Please select valid future dates from the calendar', 'error');
+      showToast('Please select valid dates from the calendar (today or future, max 7 days)', 'error');
       return;
     }
 
-    const days = calculateDays();
+    const days = calculateDaysAndValidate();
     if (days <= 0) {
       showToast('End Date must be on or after Start Date', 'error');
       return;
     }
 
+    if (days > 7) {
+      showToast('Policy Error: Leave duration cannot exceed 7 consecutive days', 'error');
+      if (limitErrorBanner) limitErrorBanner.classList.remove('hidden');
+      return;
+    }
+
+    // Check Overlap Conflict
+    const overlapConflict = checkLeaveOverlap(startDateInput.value, endDateInput.value);
+    if (overlapConflict) {
+      showToast(`Conflict: You already have a ${overlapConflict.status} leave for this period!`, 'error');
+      return;
+    }
+
+    // Check Balance
+    const availableBalance = Math.max(0, currentEmpAllowance - currentEmpApprovedDays);
+    if (days > availableBalance) {
+      showToast(`Insufficient balance: You only have ${availableBalance} day(s) remaining`, 'error');
+      return;
+    }
+
+    // Validate Reason
+    const reasonText = leaveReasonInput.value.trim();
+    if (reasonText.length < 5) {
+      if (reasonError) reasonError.classList.add('visible');
+      showToast('Please provide a reason with at least 5 characters', 'error');
+      leaveReasonInput.focus();
+      return;
+    }
+
     const session = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSION)) || {};
+    const selectedPortion = document.querySelector('input[name="day-portion"]:checked')?.value || '1.0';
+    const portionLabel = selectedPortion === '0.5-first' ? ' (First Half)' : selectedPortion === '0.5-second' ? ' (Second Half)' : '';
+
     const newLeavePayload = {
       empId: session.id || 'EMP-101',
       empName: session.name || 'Alex Johnson',
       empEmail: session.email || 'employee@company.com',
-      type: document.getElementById('leave-type').value,
+      type: leaveTypeSelect.value,
       startDate: startDateInput.value,
       endDate: endDateInput.value,
       days: days,
-      reason: document.getElementById('leave-reason').value.trim()
+      portion: selectedPortion,
+      reason: reasonText + portionLabel
     };
 
-    const res = await ApexAPI.submitLeave(newLeavePayload);
+    if (submitLeaveBtn) {
+      submitLeaveBtn.disabled = true;
+      submitLeaveBtn.querySelector('span').textContent = 'Submitting...';
+    }
 
-    showToast('Leave request submitted successfully!', 'success');
-    leaveApplyForm.reset();
-    applyDateConstraints();
-    daysBanner.classList.add('hidden');
-    await renderEmployeePortal();
+    try {
+      const res = await ApexAPI.submitLeave(newLeavePayload);
+      if (submitLeaveBtn) {
+        submitLeaveBtn.disabled = false;
+        submitLeaveBtn.querySelector('span').textContent = 'Submit Leave Request';
+      }
+
+      if (res && res.error) {
+        showToast(res.error, 'error');
+        return;
+      }
+
+      showToast('Leave request submitted successfully!', 'success');
+      leaveApplyForm.reset();
+      applyDateConstraints();
+      if (daysBanner) daysBanner.classList.add('hidden');
+      if (overlapErrorBanner) overlapErrorBanner.classList.add('hidden');
+      if (balanceErrorBanner) balanceErrorBanner.classList.add('hidden');
+      if (limitErrorBanner) limitErrorBanner.classList.add('hidden');
+      if (reasonCharCount) {
+        reasonCharCount.textContent = '0 / 5 min chars';
+        reasonCharCount.classList.remove('valid');
+      }
+      await renderEmployeePortal();
+    } catch (err) {
+      if (submitLeaveBtn) {
+        submitLeaveBtn.disabled = false;
+        submitLeaveBtn.querySelector('span').textContent = 'Submit Leave Request';
+      }
+      showToast('Error submitting leave request', 'error');
+    }
   });
 
   // =========================================================================
@@ -476,16 +775,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Admin Employee Directory
   async function renderAdminEmployeeList(filterText = '') {
     let employees = await ApexAPI.getEmployees({ search: filterText });
+    const allLeaves = await ApexAPI.getLeaves();
 
     adminEmployeesTbody.innerHTML = '';
     employees.forEach(e => {
+      const approvedDays = allLeaves
+        .filter(l => (l.empId === e.id || l.empEmail === e.email) && l.status === 'Approved')
+        .reduce((sum, l) => sum + Number(l.days || 0), 0);
+      const remainingQuota = Math.max(0, (e.allowance || 18) - approvedDays);
+
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><strong>${e.name}</strong><br><small style="color:var(--color-text-secondary)">${e.id}</small></td>
         <td>${e.email}</td>
         <td>${e.dept}</td>
         <td>${e.role}</td>
-        <td>${e.allowance} Days / Year</td>
+        <td><strong>${remainingQuota}</strong> / ${e.allowance} Days Left</td>
         <td><span class="badge badge-approved"><span class="badge-dot"></span> ${e.status}</span></td>
       `;
       adminEmployeesTbody.appendChild(tr);

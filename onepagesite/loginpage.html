@@ -157,7 +157,7 @@
             <div class="metric-icon icon-blue">🏖️</div>
             <div class="metric-content">
               <span class="metric-value" id="emp-vacation-balance">14 Days</span>
-              <span class="metric-label">Annual Vacation Balance</span>
+              <span class="metric-label">Available Leave Balance</span>
             </div>
           </div>
           <div class="metric-card">
@@ -172,6 +172,13 @@
             <div class="metric-content">
               <span class="metric-value" id="emp-approved-count">3</span>
               <span class="metric-label">Approved Leaves This Year</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon icon-purple">⏱️</div>
+            <div class="metric-content">
+              <span class="metric-value">7 Days Max</span>
+              <span class="metric-label">Single Request Policy Limit</span>
             </div>
           </div>
         </div>
@@ -189,7 +196,20 @@
                 </svg>
                 Apply for Leave
               </h2>
-              <p class="card-subtitle-sm">Fill in the details to submit a formal leave application.</p>
+              <p class="card-subtitle-sm">Submit your time-off request in accordance with HR policies.</p>
+            </div>
+
+            <!-- Leave Policy Notice Card -->
+            <div class="policy-notice-box">
+              <div class="policy-notice-header">
+                <span class="policy-badge">📋 Leave Policy Rules</span>
+              </div>
+              <ul class="policy-list">
+                <li><span>🚫</span> <strong>No Past Dates:</strong> Application must start on or after today.</li>
+                <li><span>⏱️</span> <strong>Max 7 Days:</strong> Single leave requests cannot exceed 7 consecutive days.</li>
+                <li><span>🔄</span> <strong>No Overlaps:</strong> Cannot apply for dates already booked or pending.</li>
+                <li><span>🛡️</span> <strong>Quota Check:</strong> Leave days must not exceed your available balance.</li>
+              </ul>
             </div>
 
             <form id="leave-apply-form" class="leave-form">
@@ -197,17 +217,22 @@
               <div class="form-group">
                 <label for="leave-type" class="form-label">Leave Type</label>
                 <select id="leave-type" class="form-input form-select" required>
-                  <option value="Annual Vacation">Annual Vacation</option>
-                  <option value="Sick Leave">Sick Leave</option>
-                  <option value="Casual Leave">Casual Leave</option>
-                  <option value="Emergency Leave">Emergency Leave</option>
+                  <option value="Annual Vacation">🏖️ Annual Vacation</option>
+                  <option value="Sick Leave">🤒 Sick Leave</option>
+                  <option value="Casual Leave">💼 Casual Leave</option>
+                  <option value="Emergency Leave">🚨 Emergency Leave</option>
+                  <option value="Maternity/Paternity Leave">👶 Maternity / Paternity Leave</option>
+                  <option value="Compensatory Off">⚡ Compensatory Off (Comp-Off)</option>
                 </select>
               </div>
 
               <!-- Date Picker Row -->
               <div class="form-row-2">
                 <div class="form-group">
-                  <label for="start-date" class="form-label">Start Date</label>
+                  <label for="start-date" class="form-label">
+                    Start Date <span class="required-star">*</span>
+                    <span class="field-hint">(Today or Future)</span>
+                  </label>
                   <div class="input-wrapper">
                     <span class="input-icon">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -222,7 +247,10 @@
                   <span class="error-msg" id="start-date-error">Start date cannot be in the past.</span>
                 </div>
                 <div class="form-group">
-                  <label for="end-date" class="form-label">End Date</label>
+                  <label for="end-date" class="form-label">
+                    End Date <span class="required-star">*</span>
+                    <span class="field-hint">(Max 7 Days from Start)</span>
+                  </label>
                   <div class="input-wrapper">
                     <span class="input-icon">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -234,23 +262,79 @@
                     </span>
                     <input type="date" id="end-date" class="form-input" required>
                   </div>
-                  <span class="error-msg" id="end-date-error">End date must be on or after start date.</span>
+                  <span class="error-msg" id="end-date-error">End date must be on or after start date and max 7 days.</span>
                 </div>
               </div>
 
-              <!-- Days Calculation Banner -->
+              <!-- Day Portion / Duration Type Toggle (Enabled for 1-day range) -->
+              <div class="form-group duration-type-container" id="duration-type-container">
+                <label class="form-label">Day Duration Portion</label>
+                <div class="duration-pill-group">
+                  <label class="duration-pill">
+                    <input type="radio" name="day-portion" value="1.0" checked>
+                    <span>Full Day (1.0)</span>
+                  </label>
+                  <label class="duration-pill">
+                    <input type="radio" name="day-portion" value="0.5-first">
+                    <span>First Half (0.5)</span>
+                  </label>
+                  <label class="duration-pill">
+                    <input type="radio" name="day-portion" value="0.5-second">
+                    <span>Second Half (0.5)</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Conflict / Overlap Error Banner -->
+              <div class="alert-banner alert-danger hidden" id="overlap-error-banner">
+                <span class="alert-icon">⚠️</span>
+                <div class="alert-content">
+                  <strong>Date Overlap Conflict:</strong>
+                  <span id="overlap-error-text">You already have a leave request overlapping these dates.</span>
+                </div>
+              </div>
+
+              <!-- Leave Quota Exceeded Error Banner -->
+              <div class="alert-banner alert-danger hidden" id="balance-error-banner">
+                <span class="alert-icon">❌</span>
+                <div class="alert-content">
+                  <strong>Insufficient Balance:</strong>
+                  <span id="balance-error-text">Requested days exceed your available balance quota.</span>
+                </div>
+              </div>
+
+              <!-- 7-Day Limit Exceeded Warning Banner -->
+              <div class="alert-banner alert-warning hidden" id="limit-error-banner">
+                <span class="alert-icon">🚫</span>
+                <div class="alert-content">
+                  <strong>Policy Violation:</strong>
+                  <span>Leave requests cannot exceed 7 consecutive days. Please adjust your date range.</span>
+                </div>
+              </div>
+
+              <!-- Days Calculation Banner with 7-Day Meter -->
               <div class="days-banner hidden" id="days-calculation-banner">
-                <span>Calculated Duration: <strong id="calculated-days-count">0</strong> Day(s)</span>
+                <div class="days-banner-header">
+                  <span>Calculated Duration: <strong id="calculated-days-count">0</strong> Day(s)</span>
+                  <span class="days-limit-badge" id="days-limit-status">Within 7-Day Limit</span>
+                </div>
+                <div class="days-meter-track">
+                  <div class="days-meter-fill" id="days-meter-fill" style="width: 0%;"></div>
+                </div>
               </div>
 
               <!-- Reason -->
               <div class="form-group">
-                <label for="leave-reason" class="form-label">Reason for Leave</label>
-                <textarea id="leave-reason" class="form-input form-textarea" rows="3" placeholder="Describe the reason for your leave request..." required></textarea>
+                <div class="label-row">
+                  <label for="leave-reason" class="form-label">Reason for Leave <span class="required-star">*</span></label>
+                  <span class="char-count" id="reason-char-count">0 / 5 min chars</span>
+                </div>
+                <textarea id="leave-reason" class="form-input form-textarea" rows="3" placeholder="Describe the reason for your leave request (min 5 characters)..." required minlength="5"></textarea>
+                <span class="error-msg" id="reason-error">Please provide a reason with at least 5 characters.</span>
               </div>
 
               <!-- Submit Leave Button -->
-              <button type="submit" class="btn btn-primary btn-block">
+              <button type="submit" id="submit-leave-btn" class="btn btn-primary btn-block">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="22" y1="2" x2="11" y2="13"/>
                   <polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -262,15 +346,24 @@
 
           <!-- My Leave History Table -->
           <div class="card-box flex-card">
-            <div class="card-header">
-              <h2 class="card-title-sm">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 8v4l3 3"/>
-                  <circle cx="12" cy="12" r="10"/>
-                </svg>
-                My Leave History
-              </h2>
-              <p class="card-subtitle-sm">Track your past and pending leave requests.</p>
+            <div class="card-header flex-between flex-wrap">
+              <div>
+                <h2 class="card-title-sm">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 8v4l3 3"/>
+                    <circle cx="12" cy="12" r="10"/>
+                  </svg>
+                  My Leave History
+                </h2>
+                <p class="card-subtitle-sm">Track your past, active, and pending leave requests.</p>
+              </div>
+              <!-- History Filter Tabs -->
+              <div class="table-filter-group" id="emp-filter-group">
+                <button type="button" class="btn-filter active" data-emp-filter="all">All</button>
+                <button type="button" class="btn-filter" data-emp-filter="Pending">Pending</button>
+                <button type="button" class="btn-filter" data-emp-filter="Approved">Approved</button>
+                <button type="button" class="btn-filter" data-emp-filter="Rejected">Rejected</button>
+              </div>
             </div>
 
             <div class="table-responsive">
@@ -282,6 +375,7 @@
                     <th>Days</th>
                     <th>Reason</th>
                     <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody id="emp-history-tbody">
@@ -489,7 +583,7 @@
                         <th>Email</th>
                         <th>Department</th>
                         <th>Role</th>
-                        <th>Annual Allowance</th>
+                        <th>Leave Quota (Left / Total)</th>
                         <th>Status</th>
                       </tr>
                     </thead>

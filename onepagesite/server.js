@@ -302,23 +302,78 @@ const server = http.createServer(async (req, res) => {
         return sendJSON(res, 400, { error: 'Missing required leave fields (type, startDate, endDate, reason)' });
       }
 
-      const start = new Date(payload.startDate);
-      const end = new Date(payload.endDate);
-      const diffTime = Math.abs(end - start);
-      const daysCalculated = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      // Rule 1: No Past Dates Allowed
+      if (payload.startDate < todayStr) {
+        return sendJSON(res, 400, { error: `Start date (${payload.startDate}) cannot be in the past (minimum is ${todayStr})` });
+      }
+
+      // Rule 2: End date must be >= start date
+      if (payload.endDate < payload.startDate) {
+        return sendJSON(res, 400, { error: 'End date must be on or after start date' });
+      }
+
+      // Calculate Days
+      const [y1, m1, d1] = payload.startDate.split('-').map(Number);
+      const [y2, m2, d2] = payload.endDate.split('-').map(Number);
+      const startD = new Date(y1, m1 - 1, d1);
+      const endD = new Date(y2, m2 - 1, d2);
+      const calendarDays = Math.round((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+      let daysCalculated = calendarDays;
+      if (calendarDays === 1 && payload.days && Number(payload.days) === 0.5) {
+        daysCalculated = 0.5;
+      }
+
+      // Rule 3: Maximum 7 Days Limit
+      if (daysCalculated > 7) {
+        return sendJSON(res, 400, { error: `Leave duration (${daysCalculated} days) cannot exceed policy limit of 7 consecutive days` });
+      }
+
+      const empId = payload.empId || 'EMP-101';
+
+      // Rule 4: Overlapping Date Check
+      const overlappingLeave = store.leaves.find(l => 
+        l.empId === empId && 
+        ['Pending', 'Approved'].includes(l.status) && 
+        !(payload.endDate < l.startDate || payload.startDate > l.endDate)
+      );
+
+      if (overlappingLeave) {
+        return sendJSON(res, 409, { 
+          error: `Overlapping ${overlappingLeave.status} leave request (${overlappingLeave.type}: ${overlappingLeave.startDate} to ${overlappingLeave.endDate}) already exists for this employee` 
+        });
+      }
+
+      // Rule 5: Leave Balance Quota Check
+      const employee = store.employees.find(e => e.id === empId);
+      const totalAllowance = employee ? (employee.allowance || 18) : 18;
+      const approvedDays = store.leaves
+        .filter(l => l.empId === empId && l.status === 'Approved')
+        .reduce((sum, l) => sum + Number(l.days || 0), 0);
+      const availableQuota = Math.max(0, totalAllowance - approvedDays);
+
+      if (daysCalculated > availableQuota) {
+        return sendJSON(res, 400, { 
+          error: `Insufficient leave quota. Requested: ${daysCalculated} day(s), Available: ${availableQuota} day(s)` 
+        });
+      }
 
       const newLeave = {
         id: `LR-${Math.floor(100 + Math.random() * 900)}`,
-        empId: payload.empId || 'EMP-101',
-        empName: payload.empName || 'Alex Johnson',
-        empEmail: payload.empEmail || 'employee@company.com',
+        empId: empId,
+        empName: payload.empName || (employee ? employee.name : 'Alex Johnson'),
+        empEmail: payload.empEmail || (employee ? employee.email : 'employee@company.com'),
         type: payload.type,
         startDate: payload.startDate,
         endDate: payload.endDate,
-        days: daysCalculated || 1,
+        days: daysCalculated,
+        portion: payload.portion || '1.0',
         reason: payload.reason,
         status: 'Pending',
-        submittedAt: new Date().toISOString().split('T')[0]
+        submittedAt: todayStr
       };
 
       store.leaves.unshift(newLeave);
