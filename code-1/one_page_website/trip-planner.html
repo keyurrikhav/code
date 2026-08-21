@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waypoint — Plan your trip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1B2E;
+    --bg-alt:#122036;
+    --surface:#182A45;
+    --line:#28405F;
+    --cream:#F3EFE4;
+    --muted:#8FA0BC;
+    --gold:#E8A33D;
+    --teal:#4FB3A9;
+    --coral:#E4634B;
+    --font-display:'Fraunces', serif;
+    --font-body:'IBM Plex Sans', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--cream);
+    font-family:var(--font-body);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  img,svg{display:block;max-width:100%;}
+  a{color:inherit;}
+  button, input, select{font-family:inherit;}
+  ::selection{background:var(--gold);color:var(--bg);}
+  :focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px;}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(15,27,46,.82);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:1.15rem;letter-spacing:.02em;text-decoration:none;}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);}
+  .nav-links{display:flex;gap:28px;list-style:none;margin:0;padding:0;font-size:.9rem;color:var(--muted);}
+  .nav-links a{text-decoration:none;transition:color .2s;}
+  .nav-links a:hover{color:var(--cream);}
+  @media (max-width:560px){.nav-links{gap:16px;font-size:.8rem;}}
+
+  /* ---------- HERO / FLAP BOARD ---------- */
+  .hero{padding:80px 0 64px;text-align:center;}
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--teal);margin:0 0 22px;
+  }
+  .hero h1{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:clamp(1.8rem, 4.4vw, 3.1rem);
+    margin:0 0 8px;
+    line-height:1.15;
+  }
+  .flap-line{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;margin:26px 0 30px;perspective:900px;}
+  .flap{
+    position:relative;
+    width:38px;height:52px;
+    border-radius:6px;
+    background:var(--surface);
+    box-shadow:0 1px 0 rgba(0,0,0,.4), inset 0 0 0 1px var(--line);
+  }
+  .flap::after{
+    content:"";position:absolute;left:0;right:0;top:50%;height:1px;
+    background:rgba(0,0,0,.5);transform:translateY(-.5px);z-index:3;
+  }
+  .flap-inner{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.6,.05,.3,1);}
+  .flap.flipped .flap-inner{transform:rotateX(-180deg);}
+  .flap-face{
+    position:absolute;inset:0;backface-visibility:hidden;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-mono);font-weight:600;font-size:1.4rem;color:var(--gold);
+    border-radius:6px;
+  }
+  .flap-back{transform:rotateX(180deg);}
+  @media (max-width:560px){.flap{width:26px;height:38px;} .flap-face{font-size:1rem;}}
+
+  .hero p{color:var(--muted);max-width:520px;margin:0 auto 30px;font-size:1rem;}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    font-family:var(--font-body);font-weight:600;font-size:.92rem;
+    padding:13px 26px;border-radius:999px;border:none;cursor:pointer;
+    background:var(--gold);color:var(--bg);text-decoration:none;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(232,163,61,.25);}
+  .btn.ghost{background:transparent;color:var(--cream);box-shadow:inset 0 0 0 1px var(--line);}
+  .btn.ghost:hover{box-shadow:inset 0 0 0 1px var(--teal);}
+  .btn.small{padding:9px 16px;font-size:.82rem;}
+  .btn.danger{background:transparent;color:var(--coral);box-shadow:inset 0 0 0 1px rgba(228,99,75,.4);padding:7px 12px;font-size:.78rem;}
+
+  /* ---------- SECTIONS ---------- */
+  section.block{padding:56px 0;border-top:1px solid var(--line);}
+  .block-head{margin-bottom:30px;}
+  .block-head .tag{font-family:var(--font-mono);font-size:.72rem;color:var(--teal);letter-spacing:.16em;text-transform:uppercase;}
+  .block-head h2{font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2.1rem);margin:6px 0 6px;font-weight:600;}
+  .block-head p{color:var(--muted);margin:0;max-width:520px;font-size:.94rem;}
+
+  /* ---------- BOARDING PASS (trip form) ---------- */
+  .pass{
+    background:var(--surface);
+    border-radius:16px;
+    box-shadow:inset 0 0 0 1px var(--line);
+    display:grid;grid-template-columns:1fr 200px;
+    overflow:hidden;
+  }
+  .pass-main{padding:30px 32px;}
+  .pass-stub{
+    padding:30px 24px;
+    background:var(--bg-alt);
+    border-left:2px dashed var(--line);
+    display:flex;flex-direction:column;justify-content:space-between;
+    position:relative;
+  }
+  .pass-stub::before,.pass-stub::after{
+    content:"";position:absolute;left:-11px;width:22px;height:22px;border-radius:50%;background:var(--bg);
+  }
+  .pass-stub::before{top:-11px;}
+  .pass-stub::after{bottom:-11px;}
+  @media (max-width:680px){
+    .pass{grid-template-columns:1fr;}
+    .pass-stub{border-left:none;border-top:2px dashed var(--line);}
+    .pass-stub::before,.pass-stub::after{left:auto;top:-11px;}
+    .pass-stub::before{left:-11px;}
+    .pass-stub::after{left:auto;right:-11px;}
+  }
+
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:var(--font-mono);}
+  .field input, .field select{
+    background:var(--bg-alt);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;color:var(--cream);font-size:.94rem;
+  }
+  .field input:focus, .field select:focus{border-color:var(--teal);}
+
+  .pass-stub .label{font-family:var(--font-mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;}
+  .pass-stub .value{font-family:var(--font-display);font-size:1.3rem;margin:2px 0 14px;}
+  .pass-stub .code{font-family:var(--font-mono);font-size:.85rem;color:var(--gold);}
+
+  /* ---------- ITINERARY ---------- */
+  .day-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;}
+  .day-tab{
+    font-family:var(--font-mono);font-size:.8rem;padding:8px 14px;border-radius:999px;
+    background:var(--surface);box-shadow:inset 0 0 0 1px var(--line);color:var(--muted);
+    cursor:pointer;border:none;transition:.15s;
+  }
+  .day-tab.active{background:var(--teal);color:var(--bg);box-shadow:none;font-weight:600;}
+  .day-tab:hover:not(.active){color:var(--cream);}
+
+  .ticket{
+    background:var(--surface);border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);
+    padding:26px 28px;
+  }
+  .ticket-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;border-bottom:1px dashed var(--line);padding-bottom:14px;}
+  .ticket-head h3{font-family:var(--font-display);font-size:1.3rem;margin:0;}
+  .ticket-head span{font-family:var(--font-mono);font-size:.76rem;color:var(--muted);}
+
+  .activity{
+    display:grid;grid-template-columns:80px 1fr auto;gap:14px;align-items:center;
+    padding:10px 0;border-bottom:1px solid var(--line);
+  }
+  .activity:last-of-type{border-bottom:none;}
+  .activity time{font-family:var(--font-mono);color:var(--gold);font-size:.85rem;}
+  .activity .txt{font-size:.94rem;}
+  .activity button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:4px;}
+  .activity button:hover{color:var(--coral);}
+
+  .add-row{display:grid;grid-template-columns:110px 1fr auto;gap:10px;margin-top:16px;}
+  .add-row input{background:var(--bg-alt);border:1px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--cream);font-size:.88rem;}
+  .add-row input:focus{border-color:var(--teal);}
+
+  .empty-note{color:var(--muted);font-size:.88rem;font-style:italic;padding:8px 0;}
+
+  /* ---------- BUDGET ---------- */
+  .budget-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;}
+  @media (max-width:760px){.budget-grid{grid-template-columns:1fr;}}
+
+  .expense-form{display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;margin-bottom:20px;}
+  @media (max-width:560px){.expense-form{grid-template-columns:1fr 1fr;}}
+  .expense-form input, .expense-form select{
+    background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--cream);font-size:.88rem;
+  }
+
+  .expense-list{list-style:none;margin:0;padding:0;}
+  .expense-list li{
+    display:grid;grid-template-columns:12px 1fr auto auto;gap:12px;align-items:center;
+    padding:10px 0;border-bottom:1px solid var(--line);font-size:.9rem;
+  }
+  .swatch{width:10px;height:10px;border-radius:3px;}
+  .expense-list .amt{font-family:var(--font-mono);color:var(--gold);}
+
+  .total-card{background:var(--surface);border-radius:14px;padding:22px 24px;box-shadow:inset 0 0 0 1px var(--line);}
+  .total-card .amount{font-family:var(--font-display);font-size:2.4rem;margin:4px 0 18px;}
+  .bar-row{margin-bottom:12px;}
+  .bar-row .meta{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-bottom:5px;font-family:var(--font-mono);}
+  .bar-track{height:8px;border-radius:5px;background:var(--bg-alt);overflow:hidden;}
+  .bar-fill{height:100%;border-radius:5px;transition:width .4s ease;}
+
+  footer{padding:34px 0 46px;text-align:center;color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);}
+  footer .brand{justify-content:center;margin-bottom:10px;color:var(--cream);}
+
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    .flap-inner, .btn, .bar-fill{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a href="#top" class="brand"><span class="dot"></span>WAYPOINT</a>
+    <ul class="nav-links">
+      <li><a href="#plan">Plan</a></li>
+      <li><a href="#itinerary">Itinerary</a></li>
+      <li><a href="#budget">Budget</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <p class="eyebrow">Trip planning, simplified</p>
+    <h1>Every trip starts<br>on a departures board</h1>
+    <div class="flap-line" id="flapLine" aria-label="Rotating destination names" role="img"></div>
+    <p>Set your dates, sketch the days, and keep the budget honest — all in one place, no sign-up required.</p>
+    <a href="#plan" class="btn">Start planning ↓</a>
+  </div>
+</header>
+
+<section class="block" id="plan">
+  <div class="wrap">
+    <div class="block-head">
+      <p class="tag">Step 01</p>
+      <h2>Book your ticket</h2>
+      <p>Fill in the basics — this becomes the boarding pass for the rest of your trip.</p>
+    </div>
+
+    <form class="pass" id="tripForm">
+      <div class="pass-main">
+        <div class="field-row">
+          <div class="field">
+            <label for="destination">Destination</label>
+            <input id="destination" type="text" placeholder="e.g. Lisbon, Portugal" required>
+          </div>
+          <div class="field">
+            <label for="travelers">Travelers</label>
+            <input id="travelers" type="number" min="1" value="2" required>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="startDate">Departs</label>
+            <input id="startDate" type="date" required>
+          </div>
+          <div class="field">
+            <label for="endDate">Returns</label>
+            <input id="endDate" type="date" required>
+          </div>
+        </div>
+        <button type="submit" class="btn small">Create itinerary days</button>
+      </div>
+      <div class="pass-stub">
+        <div>
+          <p class="label">Destination</p>
+          <p class="value" id="stubDestination">—</p>
+          <p class="label">Duration</p>
+          <p class="value" id="stubDuration" style="font-size:1.05rem;">—</p>
+        </div>
+        <p class="code" id="stubCode">WP-000</p>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="block" id="itinerary">
+  <div class="wrap">
+    <div class="block-head">
+      <p class="tag">Step 02</p>
+      <h2>Sketch the days</h2>
+      <p>Add stops, meals, and must-dos to each day. Times are optional — order them however makes sense.</p>
+    </div>
+
+    <div class="day-tabs" id="dayTabs"></div>
+    <div class="ticket" id="dayPanel"></div>
+
+    <div style="margin-top:18px;">
+      <button class="btn ghost small" id="addDayBtn" type="button">+ Add another day</button>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="budget">
+  <div class="wrap">
+    <div class="block-head">
+      <p class="tag">Step 03</p>
+      <h2>Keep the budget honest</h2>
+      <p>Log expenses as you plan and watch the totals shift by category.</p>
+    </div>
+
+    <div class="budget-grid">
+      <div>
+        <form class="expense-form" id="expenseForm">
+          <input type="text" id="expLabel" placeholder="What's it for?" required>
+          <select id="expCategory">
+            <option value="Stay">Stay</option>
+            <option value="Food">Food</option>
+            <option value="Transport">Transport</option>
+            <option value="Activities">Activities</option>
+            <option value="Other">Other</option>
+          </select>
+          <input type="number" id="expAmount" placeholder="Amount" min="0" step="0.01" required style="width:110px;">
+          <button type="submit" class="btn small">Add</button>
+        </form>
+        <ul class="expense-list" id="expenseList"></ul>
+      </div>
+
+      <div class="total-card">
+        <p class="label" style="font-family:var(--font-mono);font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;">Total spend</p>
+        <p class="amount" id="totalAmount">$0.00</p>
+        <div id="categoryBars"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand" style="text-decoration:none;"><span class="dot"></span>WAYPOINT</div>
+    <p>Plan it, sketch it, track it — then go.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  /* ---------------- Split-flap hero ---------------- */
+  var cities = ["LISBON","KYOTO","MARRAKECH","QUITO","HANOI","REYKJAVIK"];
+  var WIDTH = 9; // fixed character width, space-padded
+  var flapLine = document.getElementById('flapLine');
+  var flapEls = [];
+
+  function pad(word){
+    word = word.toUpperCase();
+    if(word.length > WIDTH) return word.slice(0, WIDTH);
+    return word + " ".repeat(WIDTH - word.length);
+  }
+
+  for (var i=0;i<WIDTH;i++){
+    var flap = document.createElement('div');
+    flap.className = 'flap';
+    flap.innerHTML =
+      '<div class="flap-inner">' +
+        '<div class="flap-face flap-front">&nbsp;</div>' +
+        '<div class="flap-face flap-back">&nbsp;</div>' +
+      '</div>';
+    flapLine.appendChild(flap);
+    flapEls.push(flap);
+  }
+
+  var currentWord = pad(cities[0]);
+  flapEls.forEach(function(flap, idx){
+    flap.querySelector('.flap-front').textContent = currentWord[idx];
+  });
+
+  function setWord(nextWord){
+    nextWord = pad(nextWord);
+    flapEls.forEach(function(flap, idx){
+      var front = flap.querySelector('.flap-front');
+      var back = flap.querySelector('.flap-back');
+      var ch = nextWord[idx];
+      if (currentWord[idx] === ch) return; // skip unchanged letters
+      back.textContent = ch;
+      setTimeout(function(){ flap.classList.add('flipped'); }, idx * 35);
+      setTimeout(function(){
+        front.textContent = ch;
+        flap.classList.remove('flipped');
+      }, idx * 35 + 560);
+    });
+    currentWord = nextWord;
+  }
+
+  var cityIdx = 0;
+  setInterval(function(){
+    cityIdx = (cityIdx + 1) % cities.length;
+    setWord(cities[cityIdx]);
+  }, 2600);
+
+  /* ---------------- Trip state ---------------- */
+  var trip = { destination: "", travelers: 2, start: null, end: null };
+  var days = [];        // { id, label, activities:[{id,time,text}] }
+  var expenses = [];    // { id, category, label, amount }
+  var activeDay = null;
+  var uid = 1;
+  function nextId(){ return uid++; }
+
+  var categoryColor = {
+    Stay: 'var(--gold)',
+    Food: 'var(--teal)',
+    Transport: 'var(--coral)',
+    Activities: '#9B8AE6',
+    Other: 'var(--muted)'
+  };
+
+  /* ---------------- Trip form ---------------- */
+  var tripForm = document.getElementById('tripForm');
+  tripForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var dest = document.getElementById('destination').value.trim() || "Somewhere new";
+    var travelers = document.getElementById('travelers').value || 1;
+    var start = document.getElementById('startDate').value;
+    var end = document.getElementById('endDate').value;
+
+    trip.destination = dest;
+    trip.travelers = travelers;
+    trip.start = start;
+    trip.end = end;
+
+    document.getElementById('stubDestination').textContent = dest;
+    document.getElementById('stubCode').textContent =
+      'WP-' + dest.replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase().padEnd(3,'X') + '-' + String(nextId()).padStart(3,'0');
+
+    var nights = 3;
+    if (start && end){
+      var d1 = new Date(start), d2 = new Date(end);
+      var diff = Math.round((d2 - d1) / 86400000);
+      if (diff > 0) nights = diff;
+    }
+    document.getElementById('stubDuration').textContent = nights + (nights === 1 ? ' day' : ' days');
+
+    days = [];
+    for (var i=1;i<=nights;i++){
+      days.push({ id: nextId(), label: 'Day ' + i, activities: [] });
+    }
+    activeDay = days.length ? days[0].id : null;
+    renderDays();
+  });
+
+  /* ---------------- Itinerary rendering ---------------- */
+  var dayTabs = document.getElementById('dayTabs');
+  var dayPanel = document.getElementById('dayPanel');
+
+  function renderDays(){
+    dayTabs.innerHTML = '';
+    days.forEach(function(day){
+      var tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'day-tab' + (day.id === activeDay ? ' active' : '');
+      tab.textContent = day.label;
+      tab.addEventListener('click', function(){ activeDay = day.id; renderDays(); });
+      dayTabs.appendChild(tab);
+    });
+
+    var day = days.find(function(d){ return d.id === activeDay; });
+    dayPanel.innerHTML = '';
+    if (!day){
+      dayPanel.innerHTML = '<p class="empty-note">Create a trip above to generate your day-by-day itinerary.</p>';
+      return;
+    }
+
+    var head = document.createElement('div');
+    head.className = 'ticket-head';
+    head.innerHTML = '<h3>' + day.label + '</h3><span>' + (trip.destination || 'Your trip') + '</span>';
+    dayPanel.appendChild(head);
+
+    if (!day.activities.length){
+      var empty = document.createElement('p');
+      empty.className = 'empty-note';
+      empty.textContent = 'Nothing planned yet — add the first stop below.';
+      dayPanel.appendChild(empty);
+    } else {
+      day.activities.forEach(function(act){
+        var row = document.createElement('div');
+        row.className = 'activity';
+        row.innerHTML =
+          '<time>' + (act.time || '—') + '</time>' +
+          '<span class="txt"></span>' +
+          '<button type="button" aria-label="Remove">✕</button>';
+        row.querySelector('.txt').textContent = act.text;
+        row.querySelector('button').addEventListener('click', function(){
+          day.activities = day.activities.filter(function(a){ return a.id !== act.id; });
+          renderDays();
+        });
+        dayPanel.appendChild(row);
+      });
+    }
+
+    var addRow = document.createElement('form');
+    addRow.className = 'add-row';
+    addRow.innerHTML =
+      '<input type="time" aria-label="Time">' +
+      '<input type="text" placeholder="e.g. Walk through the old town" required aria-label="Activity">' +
+      '<button class="btn small" type="submit">Add</button>';
+    addRow.addEventListener('submit', function(e){
+      e.preventDefault();
+      var inputs = addRow.querySelectorAll('input');
+      var time = inputs[0].value;
+      var text = inputs[1].value.trim();
+      if (!text) return;
+      day.activities.push({ id: nextId(), time: time, text: text });
+      renderDays();
+    });
+    dayPanel.appendChild(addRow);
+  }
+
+  document.getElementById('addDayBtn').addEventListener('click', function(){
+    if (!days.length && !trip.destination){
+      trip.destination = trip.destination || "Your trip";
+    }
+    var day = { id: nextId(), label: 'Day ' + (days.length + 1), activities: [] };
+    days.push(day);
+    activeDay = day.id;
+    renderDays();
+  });
+
+  renderDays();
+
+  /* ---------------- Budget ---------------- */
+  var expenseForm = document.getElementById('expenseForm');
+  var expenseList = document.getElementById('expenseList');
+  var totalAmount = document.getElementById('totalAmount');
+  var categoryBars = document.getElementById('categoryBars');
+
+  expenseForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var label = document.getElementById('expLabel').value.trim();
+    var category = document.getElementById('expCategory').value;
+    var amount = parseFloat(document.getElementById('expAmount').value);
+    if (!label || isNaN(amount) || amount < 0) return;
+
+    expenses.push({ id: nextId(), category: category, label: label, amount: amount });
+    expenseForm.reset();
+    renderBudget();
+  });
+
+  function renderBudget(){
+    expenseList.innerHTML = '';
+    if (!expenses.length){
+      var li = document.createElement('li');
+      li.style.border = 'none';
+      li.innerHTML = '<span class="empty-note" style="grid-column:1/-1;">No expenses logged yet.</span>';
+      expenseList.appendChild(li);
+    } else {
+      expenses.forEach(function(exp){
+        var li = document.createElement('li');
+        li.innerHTML =
+          '<span class="swatch" style="background:' + categoryColor[exp.category] + '"></span>' +
+          '<span></span>' +
+          '<span class="amt">$' + exp.amount.toFixed(2) + '</span>' +
+          '<button type="button" aria-label="Remove" style="background:none;border:none;color:var(--muted);cursor:pointer;">✕</button>';
+        li.querySelector('span:nth-child(2)').textContent = exp.label + ' · ' + exp.category;
+        li.querySelector('button').addEventListener('click', function(){
+          expenses = expenses.filter(function(x){ return x.id !== exp.id; });
+          renderBudget();
+        });
+        expenseList.appendChild(li);
+      });
+    }
+
+    var total = expenses.reduce(function(sum, e){ return sum + e.amount; }, 0);
+    totalAmount.textContent = '$' + total.toFixed(2);
+
+    var byCategory = {};
+    Object.keys(categoryColor).forEach(function(c){ byCategory[c] = 0; });
+    expenses.forEach(function(e){ byCategory[e.category] += e.amount; });
+
+    categoryBars.innerHTML = '';
+    Object.keys(byCategory).forEach(function(cat){
+      var amt = byCategory[cat];
+      var pct = total > 0 ? Math.round((amt / total) * 100) : 0;
+      var row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML =
+        '<div class="meta"><span>' + cat + '</span><span>$' + amt.toFixed(2) + '</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + categoryColor[cat] + '"></div></div>';
+      categoryBars.appendChild(row);
+    });
+  }
+
+  renderBudget();
+})();
+</script>
+</body>
+</html>
